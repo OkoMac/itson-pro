@@ -3,8 +3,19 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { DemoProvider } from "@/context/DemoContext";
+import { AppShell } from "@/components/layout/AppShell";
+import DashboardPage from "./pages/DashboardPage";
+import OrdersPage from "./pages/OrdersPage";
+import EventsPage from "./pages/EventsPage";
+import DocumentsPage from "./pages/DocumentsPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
+import RepairsPage from "./pages/RepairsPage";
+import StockPage from "./pages/StockPage";
+import TasksPage from "./pages/TasksPage";
+import AssistantPage from "./pages/AssistantPage";
+import ScenariosPage from "./pages/ScenariosPage";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +25,23 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <DemoProvider>
+          <AppShell>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/events" element={<EventsPage />} />
+              <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/approvals" element={<ApprovalsPage />} />
+              <Route path="/repairs" element={<RepairsPage />} />
+              <Route path="/stock" element={<StockPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/assistant" element={<AssistantPage />} />
+              <Route path="/scenarios" element={<ScenariosPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppShell>
+        </DemoProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
