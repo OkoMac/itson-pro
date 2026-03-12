@@ -1,20 +1,21 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, FileText, CheckCircle, Wrench,
-  Box, ListTodo, Activity, Brain, Sliders
+  Box, ListTodo, Activity, Brain, Sliders, DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: Package, label: 'Orders', path: '/orders' },
+  { icon: DollarSign, label: 'Financials', path: '/financials' },
   { icon: FileText, label: 'Documents', path: '/documents' },
   { icon: CheckCircle, label: 'Approvals', path: '/approvals' },
   { icon: Wrench, label: 'Repairs', path: '/repairs' },
   { icon: Box, label: 'Stock', path: '/stock' },
   { icon: ListTodo, label: 'Tasks', path: '/tasks' },
   { icon: Activity, label: 'Events', path: '/events' },
-  { icon: Brain, label: 'AI Assistant', path: '/assistant' },
+  { icon: Brain, label: 'AI', path: '/assistant' },
   { icon: Sliders, label: 'Scenarios', path: '/scenarios' },
 ];
 
@@ -23,8 +24,8 @@ export function NavRail() {
   const navigate = useNavigate();
 
   return (
-    <nav className="w-[72px] min-h-screen surface-raised border-r border-border flex flex-col items-center py-4 gap-1 shrink-0">
-      <div className="mb-6 flex items-center justify-center w-10 h-10 rounded-lg bg-status-active font-bold text-sm text-primary-foreground">
+    <nav className="w-[72px] min-h-screen surface-raised border-r border-border flex flex-col items-center py-4 gap-0.5 shrink-0">
+      <div className="mb-4 flex items-center justify-center w-10 h-10 rounded-lg bg-status-active font-bold text-sm text-primary-foreground">
         IP
       </div>
       {navItems.map(({ icon: Icon, label, path }) => {
@@ -34,13 +35,13 @@ export function NavRail() {
             key={path}
             onClick={() => navigate(path)}
             className={cn(
-              'w-12 h-12 flex flex-col items-center justify-center rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-accent',
+              'w-12 h-11 flex flex-col items-center justify-center rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-accent',
               active && 'bg-accent text-foreground'
             )}
             title={label}
           >
-            <Icon size={20} />
-            <span className="text-[9px] mt-0.5 leading-tight">{label}</span>
+            <Icon size={18} />
+            <span className="text-[8px] mt-0.5 leading-tight">{label}</span>
           </button>
         );
       })}

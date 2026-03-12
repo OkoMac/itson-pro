@@ -144,6 +144,44 @@ export interface User {
   email: string;
 }
 
+// ===== FINANCIAL DATA =====
+
+export type CostCenterStatus = 'on-track' | 'over-budget' | 'under-review' | 'closed';
+
+export interface CostCenter {
+  id: string;
+  name: string;
+  department: string;
+  budget: number;
+  spent: number;
+  committed: number;
+  status: CostCenterStatus;
+  owner: string;
+  description: string;
+}
+
+export interface MonthlyFinancial {
+  month: string;
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  opex: number;
+  netProfit: number;
+  orderCount: number;
+  avgOrderValue: number;
+}
+
+export interface FinancialSummary {
+  totalRevenue: number;
+  totalCogs: number;
+  grossMargin: number;
+  totalOpex: number;
+  netMargin: number;
+  accountsReceivable: number;
+  accountsPayable: number;
+  cashPosition: number;
+}
+
 // ===== SEED DATA =====
 
 export const customers: Customer[] = [
@@ -316,3 +354,36 @@ export const seedUsers: User[] = [
   { userId: 'USR-004', name: 'Michael Botha', role: 'technical', department: 'Technical', email: 'michael@clg.co.za' },
   { userId: 'USR-005', name: 'Priya Sharma', role: 'finance', department: 'Finance', email: 'priya@clg.co.za' },
 ];
+
+// ===== FINANCIAL SEED DATA =====
+
+export const seedCostCenters: CostCenter[] = [
+  { id: 'CC-001', name: 'Production Floor', department: 'Operations', budget: 450000, spent: 312000, committed: 48000, status: 'on-track', owner: 'David Nkosi', description: 'Assembly, filling, and branding operations' },
+  { id: 'CC-002', name: 'Procurement & Supply', department: 'Procurement', budget: 280000, spent: 245000, committed: 62000, status: 'over-budget', owner: 'Sarah Chen', description: 'Raw materials, components, and supplier costs' },
+  { id: 'CC-003', name: 'Technical & Repairs', department: 'Technical', budget: 120000, spent: 78000, committed: 15000, status: 'on-track', owner: 'Michael Botha', description: 'Repair services, spare parts, and technical labour' },
+  { id: 'CC-004', name: 'Sales & Marketing', department: 'Sales', budget: 180000, spent: 142000, committed: 28000, status: 'under-review', owner: 'Sarah Chen', description: 'Client acquisition, branding, and campaign costs' },
+  { id: 'CC-005', name: 'Warehousing & Logistics', department: 'Operations', budget: 220000, spent: 198000, committed: 35000, status: 'over-budget', owner: 'Michael Botha', description: 'Storage, dispatch vehicles, and courier costs' },
+  { id: 'CC-006', name: 'Administration & IT', department: 'Executive', budget: 150000, spent: 89000, committed: 12000, status: 'on-track', owner: 'Grant Morrison', description: 'Office, IT infrastructure, and general admin' },
+  { id: 'CC-007', name: 'Finance & Compliance', department: 'Finance', budget: 95000, spent: 67000, committed: 8000, status: 'on-track', owner: 'Priya Sharma', description: 'Accounting, audit, and regulatory compliance' },
+  { id: 'CC-008', name: 'R&D & Product Development', department: 'Technical', budget: 85000, spent: 52000, committed: 18000, status: 'under-review', owner: 'Michael Botha', description: 'New product testing and prototype development' },
+];
+
+export const seedMonthlyFinancials: MonthlyFinancial[] = [
+  { month: 'Oct 2025', revenue: 1245000, cogs: 748000, grossProfit: 497000, opex: 312000, netProfit: 185000, orderCount: 98, avgOrderValue: 12704 },
+  { month: 'Nov 2025', revenue: 1380000, cogs: 814000, grossProfit: 566000, opex: 328000, netProfit: 238000, orderCount: 112, avgOrderValue: 12321 },
+  { month: 'Dec 2025', revenue: 1120000, cogs: 672000, grossProfit: 448000, opex: 298000, netProfit: 150000, orderCount: 85, avgOrderValue: 13176 },
+  { month: 'Jan 2026', revenue: 1410000, cogs: 832000, grossProfit: 578000, opex: 345000, netProfit: 233000, orderCount: 118, avgOrderValue: 11949 },
+  { month: 'Feb 2026', revenue: 1520000, cogs: 896000, grossProfit: 624000, opex: 358000, netProfit: 266000, orderCount: 124, avgOrderValue: 12258 },
+  { month: 'Mar 2026', revenue: 1180000, cogs: 702000, grossProfit: 478000, opex: 320000, netProfit: 158000, orderCount: 94, avgOrderValue: 12553 },
+];
+
+export const seedFinancialSummary: FinancialSummary = {
+  totalRevenue: 7855000,
+  totalCogs: 4664000,
+  grossMargin: 40.6,
+  totalOpex: 1961000,
+  netMargin: 15.7,
+  accountsReceivable: 842000,
+  accountsPayable: 456000,
+  cashPosition: 1240000,
+};
