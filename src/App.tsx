@@ -7,6 +7,7 @@ import { DemoProvider } from "@/context/DemoContext";
 import { AppShell } from "@/components/layout/AppShell";
 import DashboardPage from "./pages/DashboardPage";
 import OrdersPage from "./pages/OrdersPage";
+import FinancialsPage from "./pages/FinancialsPage";
 import EventsPage from "./pages/EventsPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
@@ -30,6 +31,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/financials" element={<FinancialsPage />} />
               <Route path="/events" element={<EventsPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/approvals" element={<ApprovalsPage />} />
