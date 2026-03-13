@@ -1,13 +1,14 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, FileText, CheckCircle, Wrench,
-  Box, ListTodo, Activity, Brain, Sliders, DollarSign
+  Box, ListTodo, Activity, Brain, Sliders, DollarSign, Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: Package, label: 'Orders', path: '/orders' },
+  { icon: Users, label: 'Customers', path: '/customers' },
   { icon: DollarSign, label: 'Financials', path: '/financials' },
   { icon: FileText, label: 'Documents', path: '/documents' },
   { icon: CheckCircle, label: 'Approvals', path: '/approvals' },
