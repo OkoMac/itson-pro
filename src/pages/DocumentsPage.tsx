@@ -1,22 +1,40 @@
 import { useDemo } from '@/context/DemoContext';
-import { FileText, X, CheckCircle, XCircle, Edit3, Link2, Eye } from 'lucide-react';
+import { FileText, X, CheckCircle, XCircle, Edit3, Link2, Eye, Plus } from 'lucide-react';
 import { useState } from 'react';
 import type { Document } from '@/data/seed';
+import { toast } from 'sonner';
 
 const DocumentsPage = () => {
   const { state, dispatch } = useDemo();
   const [selected, setSelected] = useState<Document | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const types = [...new Set(state.documents.map(d => d.documentType))];
-  const filtered = typeFilter === 'all' ? state.documents : state.documents.filter(d => d.documentType === typeFilter);
+  const filtered = state.documents
+    .filter(d => typeFilter === 'all' || d.documentType === typeFilter)
+    .filter(d => statusFilter === 'all' || d.status === statusFilter);
 
   return (
     <div className="flex gap-4 h-[calc(100vh-7rem)]">
       <div className={`flex-1 overflow-auto ${selected ? 'max-w-[60%]' : ''}`}>
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-semibold text-foreground">OCR & Document Centre</h1>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">OCR & Document Centre</h1>
+            <p className="text-[11px] text-muted-foreground">{filtered.length} of {state.documents.length} documents</p>
+          </div>
           <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="h-7 rounded-md bg-secondary border border-border px-2 text-xs text-foreground"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
@@ -25,7 +43,9 @@ const DocumentsPage = () => {
               <option value="all">All Types</option>
               {types.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <span className="text-[11px] text-muted-foreground">{filtered.length} documents</span>
+            {(typeFilter !== 'all' || statusFilter !== 'all') && (
+              <button onClick={() => { setTypeFilter('all'); setStatusFilter('all'); }} className="text-[10px] text-status-active hover:underline">Clear</button>
+            )}
           </div>
         </div>
 
@@ -106,15 +126,67 @@ const DocumentsPage = () => {
 };
 
 function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void }) {
-  const { state } = useDemo();
+  const { state, dispatch } = useDemo();
 
   const linkedOrder = state.orders.find(o => o.orderId === doc.linkedEntityId);
-  const linkedRepair = state.repairs.find(r => r.repairId === doc.linkedEntityId);
   const relatedEvents = state.events.filter(e => e.entityId === doc.documentId);
+
+  const handleApprove = () => {
+    dispatch({ type: 'UPDATE_DOCUMENT_STATUS', documentId: doc.documentId, status: 'approved' });
+    dispatch({ type: 'ADD_EVENT', event: {
+      eventId: `EVT-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      type: 'OCRReviewed',
+      entityType: 'document',
+      entityId: doc.documentId,
+      title: `Document ${doc.fileName} Approved`,
+      description: `OCR extraction approved at ${doc.confidence}% confidence`,
+      department: 'Operations',
+      owner: state.role,
+      severity: 'info',
+      status: 'new',
+      tags: ['document', 'approved'],
+    }});
+    toast.success('✅ Document Approved', { description: doc.fileName });
+  };
+
+  const handleReject = () => {
+    dispatch({ type: 'UPDATE_DOCUMENT_STATUS', documentId: doc.documentId, status: 'rejected' });
+    dispatch({ type: 'ADD_EVENT', event: {
+      eventId: `EVT-${Date.now()}-r`,
+      timestamp: new Date().toISOString(),
+      type: 'OCRReviewed',
+      entityType: 'document',
+      entityId: doc.documentId,
+      title: `Document ${doc.fileName} Rejected`,
+      description: `OCR extraction rejected — manual review required`,
+      department: 'Operations',
+      owner: state.role,
+      severity: 'medium',
+      status: 'new',
+      tags: ['document', 'rejected'],
+    }});
+    toast.error('❌ Document Rejected', { description: doc.fileName });
+  };
+
+  const handleCreateTask = () => {
+    const task = {
+      taskId: `TSK-${Date.now()}`,
+      linkedEntityType: 'document',
+      linkedEntityId: doc.documentId,
+      title: `Review ${doc.documentType}: ${doc.fileName}`,
+      owner: 'Sarah Chen',
+      priority: 'medium' as const,
+      dueDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+      status: 'open' as const,
+      department: 'Operations',
+    };
+    dispatch({ type: 'ADD_TASK', task });
+    toast.info('📋 Task Created', { description: task.title });
+  };
 
   return (
     <div className="surface-raised border border-border rounded-lg h-full flex flex-col animate-slide-in-right">
-      {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -134,6 +206,7 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
           <span className={`text-[10px] px-1.5 py-0.5 rounded ${
             doc.status === 'approved' ? 'bg-status-healthy/10 text-status-healthy' :
             doc.status === 'pending' ? 'bg-status-risk/10 text-status-risk' :
+            doc.status === 'rejected' ? 'bg-status-critical/10 text-status-critical' :
             'bg-accent text-muted-foreground'
           }`}>{doc.status}</span>
           <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
@@ -143,7 +216,6 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-5">
-        {/* Document Preview Mock */}
         <div className="surface-overlay rounded-lg p-6 border border-border border-dashed">
           <div className="text-center">
             <FileText size={40} className="text-muted-foreground mx-auto mb-2 opacity-30" />
@@ -152,7 +224,6 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
           </div>
         </div>
 
-        {/* Detected Type */}
         <div>
           <h3 className="text-xs font-medium text-foreground mb-2">Detected Document Type</h3>
           <div className="surface-overlay rounded-md p-3 flex items-center justify-between">
@@ -161,7 +232,6 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
           </div>
         </div>
 
-        {/* Extracted Fields */}
         <div>
           <h3 className="text-xs font-medium text-foreground mb-2">Extracted Fields</h3>
           <div className="space-y-1.5">
@@ -177,7 +247,6 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
           </div>
         </div>
 
-        {/* Linked Entity */}
         <div>
           <h3 className="text-xs font-medium text-foreground mb-2">Linked Record</h3>
           <div className="surface-overlay rounded-md p-3">
@@ -188,13 +257,12 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
             </div>
             {linkedOrder && (
               <p className="text-[11px] text-muted-foreground mt-1">
-                {state.orders.find(o => o.orderId === doc.linkedEntityId)?.currentStage} • R{linkedOrder.value.toLocaleString()}
+                {linkedOrder.currentStage} • R{linkedOrder.value.toLocaleString()}
               </p>
             )}
           </div>
         </div>
 
-        {/* Related Events */}
         {relatedEvents.length > 0 && (
           <div>
             <h3 className="text-xs font-medium text-foreground mb-2">Related Events</h3>
@@ -211,18 +279,21 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
           </div>
         )}
 
-        {/* Actions */}
         <div>
           <h3 className="text-xs font-medium text-foreground mb-2">Actions</h3>
           <div className="flex flex-wrap gap-2">
-            <button className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-status-healthy/10 text-status-healthy hover:bg-status-healthy/20 flex items-center gap-1">
-              <CheckCircle size={10} /> Approve Extraction
-            </button>
-            <button className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-status-critical/10 text-status-critical hover:bg-status-critical/20 flex items-center gap-1">
-              <XCircle size={10} /> Reject
-            </button>
-            <button className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-accent text-muted-foreground hover:text-foreground flex items-center gap-1">
-              <Link2 size={10} /> Link to Order
+            {doc.status === 'pending' && (
+              <>
+                <button onClick={handleApprove} className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-status-healthy/10 text-status-healthy hover:bg-status-healthy/20 flex items-center gap-1">
+                  <CheckCircle size={10} /> Approve Extraction
+                </button>
+                <button onClick={handleReject} className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-status-critical/10 text-status-critical hover:bg-status-critical/20 flex items-center gap-1">
+                  <XCircle size={10} /> Reject
+                </button>
+              </>
+            )}
+            <button onClick={handleCreateTask} className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-accent text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <Plus size={10} /> Create Task
             </button>
           </div>
         </div>

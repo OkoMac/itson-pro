@@ -6,6 +6,7 @@ import {
   seedStickyNotes, seedEvents, products as seedProducts,
   customers, seedUsers,
 } from '@/data/seed';
+import { toast } from 'sonner';
 
 interface DemoState {
   role: Role;
@@ -31,8 +32,10 @@ type DemoAction =
   | { type: 'ADD_TASK'; task: Task }
   | { type: 'ADD_STICKY_NOTE'; note: StickyNote }
   | { type: 'ADD_DOCUMENT'; document: Document }
+  | { type: 'UPDATE_DOCUMENT_STATUS'; documentId: string; status: Document['status'] }
   | { type: 'UPDATE_ORDER'; order: Order }
   | { type: 'UPDATE_PRODUCT'; sku: string; updates: Partial<Product> }
+  | { type: 'UPDATE_TASK_STATUS'; taskId: string; status: Task['status'] }
   | { type: 'RESET' };
 
 const initialState: DemoState = {
@@ -82,6 +85,12 @@ function demoReducer(state: DemoState, action: DemoAction): DemoState {
       return { ...state, stickyNotes: [action.note, ...state.stickyNotes] };
     case 'ADD_DOCUMENT':
       return { ...state, documents: [action.document, ...state.documents] };
+    case 'UPDATE_DOCUMENT_STATUS': {
+      const documents = state.documents.map(d =>
+        d.documentId === action.documentId ? { ...d, status: action.status } : d
+      );
+      return { ...state, documents };
+    }
     case 'UPDATE_ORDER': {
       const orders = state.orders.map(o =>
         o.orderId === action.order.orderId ? action.order : o
@@ -93,6 +102,12 @@ function demoReducer(state: DemoState, action: DemoAction): DemoState {
         p.sku === action.sku ? { ...p, ...action.updates } : p
       );
       return { ...state, products: prods };
+    }
+    case 'UPDATE_TASK_STATUS': {
+      const tasks = state.tasks.map(t =>
+        t.taskId === action.taskId ? { ...t, status: action.status } : t
+      );
+      return { ...state, tasks };
     }
     case 'RESET':
       return { ...initialState };
@@ -121,7 +136,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   }), []);
 
   const launchScenario = useCallback((scenario: string) => {
-    const now = new Date().toISOString();
     switch (scenario) {
       case 'po-arrival': {
         const evt1 = makeEvent({ type: 'DocumentReceived', entityType: 'document', entityId: 'DOC-001', title: 'Purchase Order Received', description: 'PO from Pick n Pay received via email', department: 'Sales', owner: 'Sarah Chen', severity: 'info', status: 'new', tags: ['document', 'PO'] });
@@ -129,6 +143,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const evt3 = makeEvent({ type: 'OrderCreated', entityType: 'order', entityId: 'CLG-2145', title: 'Order CLG-2145 Created', description: 'Order created from PO for Pick n Pay', department: 'Sales', owner: 'Sarah Chen', severity: 'info', status: 'new', tags: ['order'] });
         dispatch({ type: 'ADD_EVENTS', events: [evt3, evt2, evt1] });
         dispatch({ type: 'SELECT_ORDER', orderId: 'CLG-2145' });
+        toast.success('📄 PO Arrival Scenario Launched', { description: 'PO received → OCR extracted → Order CLG-2145 created', duration: 4000 });
         break;
       }
       case 'stock-shortage': {
@@ -138,12 +153,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'MOVE_ORDER_STAGE', orderId: 'CLG-2145', stage: 'Waiting for Stock' });
         const order = state.orders.find(o => o.orderId === 'CLG-2145');
         if (order) dispatch({ type: 'UPDATE_ORDER', order: { ...order, riskStatus: 'critical', currentStage: 'Waiting for Stock' } });
+        toast.error('⚠ Stock Shortage Detected', { description: 'SD-110 critically low — CLG-2145 moved to Waiting for Stock', duration: 4000 });
         break;
       }
       case 'branding-instruction': {
         const evt = makeEvent({ type: 'DocumentReceived', entityType: 'document', entityId: 'DOC-002', title: 'Branding Instruction Received', description: 'Q1 Hygiene Refresh branding from Pick n Pay', department: 'Sales', owner: 'David Nkosi', severity: 'info', status: 'new', tags: ['branding'] });
         const noteEvt = makeEvent({ type: 'StickyNoteAdded', entityType: 'order', entityId: 'CLG-2145', title: 'Note Added', description: 'Use blue logo variant — PMS 2945C', department: 'Sales', owner: 'David Nkosi', severity: 'info', status: 'new', tags: ['note'] });
         dispatch({ type: 'ADD_EVENTS', events: [noteEvt, evt] });
+        toast.info('🎨 Branding Instruction Received', { description: 'Q1 branding from Pick n Pay — note added to CLG-2145', duration: 4000 });
         break;
       }
       case 'repair-approval': {
@@ -151,6 +168,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const evt2 = makeEvent({ type: 'QuoteGenerated', entityType: 'repair', entityId: 'REP-001', title: 'Quote Generated: R1,890', description: 'Margin at 13% — below threshold', department: 'Finance', owner: 'System', severity: 'high', status: 'new', tags: ['quote', 'margin'] });
         const evt3 = makeEvent({ type: 'ApprovalRequested', entityType: 'approval', entityId: 'APR-001', title: 'Margin Exception Approval Requested', description: 'Repair margin below 18% threshold', department: 'Finance', owner: 'David Nkosi', severity: 'high', status: 'new', tags: ['approval'] });
         dispatch({ type: 'ADD_EVENTS', events: [evt3, evt2, evt1] });
+        toast.warning('🔧 Repair Approval Triggered', { description: 'REP-001 margin at 13% — approval requested from Finance', duration: 4000 });
         break;
       }
       case 'dispatch': {
@@ -158,10 +176,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const evt2 = makeEvent({ type: 'DispatchCompleted', entityType: 'order', entityId: 'CLG-2150', title: 'Dispatch Completed', description: 'CLG-2150 dispatched to Rosebank Mall', department: 'Operations', owner: 'Michael Botha', severity: 'info', status: 'new', tags: ['dispatch', 'completed'] });
         dispatch({ type: 'ADD_EVENTS', events: [evt2, evt1] });
         dispatch({ type: 'MOVE_ORDER_STAGE', orderId: 'CLG-2150', stage: 'Dispatched' });
+        toast.success('🚚 Dispatch Completed', { description: 'CLG-2150 dispatched to Rosebank Mall Facilities', duration: 4000 });
         break;
       }
       case 'reset':
         dispatch({ type: 'RESET' });
+        toast.info('🔄 Demo Reset', { description: 'All data restored to baseline state', duration: 3000 });
         break;
     }
   }, [makeEvent, state.orders, dispatch]);
