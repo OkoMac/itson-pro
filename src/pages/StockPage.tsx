@@ -260,5 +260,5 @@ const StockPage = () => {
   );
 };
 
-import { useState } from 'react';
+
 export default StockPage;
