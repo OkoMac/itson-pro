@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDemo } from '@/context/DemoContext';
 import { Box, AlertTriangle, TrendingDown, Package, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
