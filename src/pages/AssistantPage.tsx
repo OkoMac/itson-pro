@@ -76,8 +76,9 @@ const AssistantPage = () => {
         const custOrders = state.orders.filter(o => o.customerId === matchedCust.customerId);
         const atRisk = custOrders.filter(o => o.riskStatus !== 'none');
         const totalValue = custOrders.reduce((s, o) => s + o.value, 0);
-        const custRepairs = state.repairs.filter(r => r.customer === matchedCust.name);
-        const custDocs = state.documents.filter(d => d.customer === matchedCust.name);
+        const custRepairs = state.repairs.filter(r => r.customerId === matchedCust.customerId);
+        const custOrderIds = new Set(custOrders.map(o => o.orderId));
+        const custDocs = state.documents.filter(d => custOrderIds.has(d.linkedEntityId) || custRepairs.some(r => r.repairId === d.linkedEntityId));
         answer = `${matchedCust.name} (${matchedCust.customerId}):\n• Segment: ${matchedCust.segment ?? 'N/A'} — ${matchedCust.location}\n• Account Manager: ${matchedCust.accountManager}\n• ${custOrders.length} orders totalling R${totalValue.toLocaleString()}\n  — ${custOrders.filter(o => o.status === 'active').length} active, ${atRisk.length} at risk\n• ${custRepairs.length} repair job${custRepairs.length !== 1 ? 's' : ''}\n• ${custDocs.length} document${custDocs.length !== 1 ? 's' : ''}`;
         records = custOrders.map(o => ({ id: o.orderId, type: 'order' }));
       } else {

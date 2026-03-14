@@ -54,16 +54,18 @@ function useGlobalSearch(query: string, state: ReturnType<typeof useDemo>['state
 
     // Orders
     for (const o of state.orders) {
+      const custName = customers.find(c => c.customerId === o.customerId)?.name ?? o.customerId;
       if (
         o.orderId.toLowerCase().includes(q) ||
-        o.customer.toLowerCase().includes(q) ||
-        o.currentStage.toLowerCase().includes(q)
+        custName.toLowerCase().includes(q) ||
+        o.currentStage.toLowerCase().includes(q) ||
+        o.poNumber.toLowerCase().includes(q)
       ) {
         results.push({
           id: o.orderId,
           type: 'order',
           title: o.orderId,
-          subtitle: `${o.customer} · ${o.currentStage}`,
+          subtitle: `${custName} · ${o.currentStage}`,
           badge: o.riskStatus === 'critical' ? 'Critical' : o.riskStatus === 'high' ? 'High Risk' : undefined,
           badgeVariant: o.riskStatus === 'critical' ? 'critical' : o.riskStatus === 'high' ? 'warning' : undefined,
           href: '/orders',
@@ -76,14 +78,15 @@ function useGlobalSearch(query: string, state: ReturnType<typeof useDemo>['state
     for (const c of customers) {
       if (
         c.name.toLowerCase().includes(q) ||
-        c.code.toLowerCase().includes(q) ||
-        (c.segment && c.segment.toLowerCase().includes(q))
+        c.customerId.toLowerCase().includes(q) ||
+        (c.segment && c.segment.toLowerCase().includes(q)) ||
+        (c.accountManager && c.accountManager.toLowerCase().includes(q))
       ) {
         results.push({
-          id: c.code,
+          id: c.customerId,
           type: 'customer',
           title: c.name,
-          subtitle: `${c.code} · ${c.segment ?? ''}`,
+          subtitle: `${c.customerId} · ${c.segment ?? ''}`,
           href: '/customers',
         });
         if (results.length >= 12) return results;
