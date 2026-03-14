@@ -36,6 +36,7 @@ type DemoAction =
   | { type: 'UPDATE_ORDER'; order: Order }
   | { type: 'UPDATE_PRODUCT'; sku: string; updates: Partial<Product> }
   | { type: 'UPDATE_TASK_STATUS'; taskId: string; status: Task['status'] }
+  | { type: 'ADD_ORDER'; order: Order }
   | { type: 'RESET' };
 
 const STORAGE_KEY = 'itson-pro-state-v1';
@@ -133,6 +134,8 @@ function demoReducer(state: DemoState, action: DemoAction): DemoState {
       );
       return { ...state, tasks };
     }
+    case 'ADD_ORDER':
+      return { ...state, orders: [action.order, ...state.orders] };
     case 'RESET': {
       try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
       return { ...initialState };

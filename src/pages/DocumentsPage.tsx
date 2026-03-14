@@ -1,5 +1,5 @@
 import { useDemo } from '@/context/DemoContext';
-import { FileText, X, CheckCircle, XCircle, Edit3, Link2, Eye, Plus } from 'lucide-react';
+import { FileText, X, CheckCircle, XCircle, Edit3, Link2, Eye, Plus, Save } from 'lucide-react';
 import { useState } from 'react';
 import type { Document } from '@/data/seed';
 import { toast } from 'sonner';
@@ -127,9 +127,24 @@ const DocumentsPage = () => {
 
 function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void }) {
   const { state, dispatch } = useDemo();
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
 
   const linkedOrder = state.orders.find(o => o.orderId === doc.linkedEntityId);
   const relatedEvents = state.events.filter(e => e.entityId === doc.documentId);
+
+  const startEdit = (key: string, value: string) => {
+    setEditingField(key);
+    setEditValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const saveEdit = (key: string) => {
+    const newValue = editValues[key];
+    if (newValue !== undefined && newValue !== doc.extractedFields[key]) {
+      toast.success('Field updated', { description: `${key.replace(/([A-Z])/g, ' $1').trim()}: ${newValue}` });
+    }
+    setEditingField(null);
+  };
 
   const handleApprove = () => {
     dispatch({ type: 'UPDATE_DOCUMENT_STATUS', documentId: doc.documentId, status: 'approved' });
@@ -235,15 +250,45 @@ function OcrReviewDrawer({ doc, onClose }: { doc: Document; onClose: () => void 
         <div>
           <h3 className="text-xs font-medium text-foreground mb-2">Extracted Fields</h3>
           <div className="space-y-1.5">
-            {Object.entries(doc.extractedFields).map(([key, value]) => (
-              <div key={key} className="surface-overlay rounded-md p-3 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                  <p className="text-xs text-foreground font-medium mt-0.5">{value}</p>
+            {Object.entries(doc.extractedFields).map(([key, value]) => {
+              const isEditing = editingField === key;
+              const displayValue = editValues[key] !== undefined ? editValues[key] : value;
+              const label = key.replace(/([A-Z])/g, ' $1').trim();
+              return (
+                <div key={key} className="surface-overlay rounded-md p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</span>
+                    {!isEditing && (
+                      <button onClick={() => startEdit(key, displayValue)} className="text-muted-foreground hover:text-foreground shrink-0 mt-0.5">
+                        <Edit3 size={11} />
+                      </button>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <input
+                        autoFocus
+                        value={editValues[key] ?? value}
+                        onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') saveEdit(key);
+                          if (e.key === 'Escape') setEditingField(null);
+                        }}
+                        className="flex-1 h-6 rounded bg-secondary border border-ring px-2 text-xs text-foreground focus:outline-none"
+                      />
+                      <button onClick={() => saveEdit(key)} className="shrink-0 text-status-healthy hover:opacity-80">
+                        <Save size={12} />
+                      </button>
+                      <button onClick={() => setEditingField(null)} className="shrink-0 text-muted-foreground hover:text-foreground">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-foreground font-medium mt-0.5">{displayValue}</p>
+                  )}
                 </div>
-                <Edit3 size={12} className="text-muted-foreground hover:text-foreground cursor-pointer" />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

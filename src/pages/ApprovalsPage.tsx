@@ -1,5 +1,5 @@
 import { useDemo } from '@/context/DemoContext';
-import { CheckCircle, XCircle, AlertTriangle, Clock, ArrowUpRight, MessageSquare } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Clock, ArrowUpRight, MessageSquare, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,8 @@ const ApprovalsPage = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const types = [...new Set(state.approvals.map(a => a.approvalType))];
   const filtered = state.approvals
@@ -41,7 +43,7 @@ const ApprovalsPage = () => {
     }
   };
 
-  const handleReject = (approvalId: string) => {
+  const handleReject = (approvalId: string, reason: string) => {
     const a = state.approvals.find(x => x.approvalId === approvalId);
     dispatch({ type: 'REJECT_ITEM', approvalId });
     if (a) {
@@ -52,15 +54,21 @@ const ApprovalsPage = () => {
         entityType: 'approval',
         entityId: approvalId,
         title: `${a.approvalType} Rejected`,
-        description: a.reason,
+        description: reason ? `Reason: ${reason}` : a.reason,
         department: 'Finance',
         owner: state.role,
         severity: 'medium',
         status: 'new',
         tags: ['approval', 'rejected'],
       }});
-      toast.error(`❌ ${a.approvalType} Rejected`, { description: a.entityId });
+      toast.error(`❌ ${a.approvalType} Rejected`, { description: reason || a.entityId });
     }
+    setRejectingId(null);
+    setRejectReason('');
+  };
+
+  const confirmReject = () => {
+    if (rejectingId) handleReject(rejectingId, rejectReason);
   };
 
   const handleEscalate = (a: typeof state.approvals[0]) => {
@@ -180,7 +188,7 @@ const ApprovalsPage = () => {
                   className="text-[11px] font-medium px-3 py-1.5 rounded-md bg-status-healthy/10 text-status-healthy hover:bg-status-healthy/20 flex items-center gap-1">
                   <CheckCircle size={10} /> Approve
                 </button>
-                <button onClick={() => handleReject(a.approvalId)}
+                <button onClick={() => { setRejectingId(a.approvalId); setRejectReason(''); }}
                   className="text-[11px] font-medium px-3 py-1.5 rounded-md bg-status-critical/10 text-status-critical hover:bg-status-critical/20 flex items-center gap-1">
                   <XCircle size={10} /> Reject
                 </button>
@@ -199,6 +207,55 @@ const ApprovalsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Rejection reason modal */}
+      {rejectingId && (() => {
+        const a = state.approvals.find(x => x.approvalId === rejectingId);
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="surface-raised border border-border rounded-xl p-5 w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <XCircle size={16} className="text-status-critical" />
+                  <span className="text-sm font-semibold text-foreground">Reject Approval</span>
+                </div>
+                <button onClick={() => setRejectingId(null)} className="text-muted-foreground hover:text-foreground">
+                  <X size={16} />
+                </button>
+              </div>
+              {a && (
+                <div className="mb-4 p-3 rounded-lg bg-secondary/50 border border-border">
+                  <p className="text-xs font-medium text-foreground">{a.approvalType}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{a.entityId} — R{a.amount.toLocaleString()}</p>
+                </div>
+              )}
+              <label className="block text-[11px] text-muted-foreground mb-1.5">Rejection reason <span className="text-status-critical">*</span></label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && rejectReason.trim()) confirmReject(); }}
+                placeholder="Provide a reason for rejection..."
+                rows={3}
+                autoFocus
+                className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-status-critical/50 resize-none"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1 mb-4">⌘↵ to submit</p>
+              <div className="flex items-center gap-2 justify-end">
+                <button onClick={() => setRejectingId(null)}
+                  className="px-4 py-1.5 rounded-md bg-secondary border border-border text-xs text-muted-foreground hover:text-foreground">
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReject}
+                  disabled={!rejectReason.trim()}
+                  className="px-4 py-1.5 rounded-md bg-status-critical/10 text-status-critical hover:bg-status-critical/20 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+                  <XCircle size={12} /> Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

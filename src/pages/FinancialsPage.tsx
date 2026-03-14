@@ -1,6 +1,15 @@
 import { useState, useMemo } from 'react';
 import { seedCostCenters, seedMonthlyFinancials, seedFinancialSummary, seedDataCenters, seedInvoices, type CostCenter, type CostCenterStatus, type Invoice, type InvoiceStatus } from '@/data/seed';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, BarChart3, Kanban, Grid3X3, Map, Server, Receipt, ChevronRight, Globe, Filter } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, BarChart3, Kanban, Grid3X3, Map, Server, Receipt, ChevronRight, Globe, Filter, Download } from 'lucide-react';
+
+function exportCsv(filename: string, rows: string[][], headers: string[]) {
+  const lines = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, Cell, PieChart, Pie, Legend } from 'recharts';
 import { FinancialFreeviewGrid } from '@/components/financials/FinancialFreeviewGrid';
 import { EnterpriseLandscapeChart } from '@/components/financials/EnterpriseLandscapeChart';
@@ -72,18 +81,28 @@ const FinancialsPage = () => {
           <h1 className="text-lg font-semibold text-foreground">Financial Command</h1>
           <p className="text-[11px] text-muted-foreground">Cost centres, revenue, margin intelligence, and enterprise coverage</p>
         </div>
-        <div className="flex items-center gap-1 surface-raised border border-border rounded-lg p-0.5">
-          {viewTabs.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setView(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
-                view === t.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <t.icon size={14} /> {t.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const rows = seedCostCenters.map(cc => [cc.id, cc.name, cc.department, String(cc.budget), String(cc.spent), String(cc.committed), cc.status, cc.owner]);
+              exportCsv('cost-centres-export.csv', rows, ['ID', 'Name', 'Department', 'Budget', 'Spent', 'Committed', 'Status', 'Owner']);
+            }}
+            className="h-7 px-2 rounded-md bg-secondary border border-border text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <Download size={12} /> Export
+          </button>
+          <div className="flex items-center gap-1 surface-raised border border-border rounded-lg p-0.5">
+            {viewTabs.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setView(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
+                  view === t.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <t.icon size={14} /> {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -1,8 +1,17 @@
 import { useState } from 'react';
 import { useDemo } from '@/context/DemoContext';
-import { Box, AlertTriangle, TrendingDown, Package, RefreshCw } from 'lucide-react';
+import { Box, AlertTriangle, TrendingDown, Package, RefreshCw, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { toast } from 'sonner';
+
+function exportCsv(filename: string, rows: string[][], headers: string[]) {
+  const lines = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 const StockPage = () => {
   const { state, dispatch } = useDemo();
@@ -82,6 +91,17 @@ const StockPage = () => {
             <option value="all">All Categories</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <button
+            onClick={() => {
+              exportCsv('stock-export.csv',
+                filtered.map(p => [p.sku, p.productName, p.category, String(p.stockOnHand), String(p.reorderLevel), String(p.unitPrice), String(p.leadTimeDays), p.stockOnHand <= p.reorderLevel ? 'Low' : 'OK']),
+                ['SKU', 'Product Name', 'Category', 'Stock On Hand', 'Reorder Level', 'Unit Price', 'Lead Time (Days)', 'Status']
+              );
+              toast.success('CSV Exported', { description: `${filtered.length} products` });
+            }}
+            className="h-7 px-2 rounded-md bg-secondary border border-border text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <Download size={12} /> Export
+          </button>
         </div>
       </div>
 
