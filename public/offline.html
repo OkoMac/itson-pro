@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Itson Pro — Offline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 2rem;
+    }
+    .logo {
+      width: 72px; height: 72px;
+      background: #3b82f6;
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.5rem; color: white;
+      margin-bottom: 2rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    p { color: #64748b; font-size: 0.875rem; max-width: 360px; line-height: 1.6; margin-bottom: 2rem; }
+    .badge {
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 1.5rem;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="logo">IP</div>
+  <h1>You're offline</h1>
+  <p>Itson Pro requires a connection to sync operational data. Your last cached data is available once the app loads.</p>
+  <div class="badge">⚡ Cached data from your last session is preserved</div>
+  <button onclick="window.location.reload()">Retry connection</button>
+</body>
+</html>

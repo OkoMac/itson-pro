@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { seedCostCenters, seedMonthlyFinancials, seedFinancialSummary, type CostCenter, type CostCenterStatus } from '@/data/seed';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, BarChart3, Kanban, Grid3X3, Map } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, Cell, PieChart, Pie } from 'recharts';
+import { useState, useMemo } from 'react';
+import { seedCostCenters, seedMonthlyFinancials, seedFinancialSummary, seedDataCenters, seedInvoices, type CostCenter, type CostCenterStatus, type Invoice, type InvoiceStatus } from '@/data/seed';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, BarChart3, Kanban, Grid3X3, Map, Server, Receipt, ChevronRight, Globe, Filter } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, Cell, PieChart, Pie, Legend } from 'recharts';
 import { FinancialFreeviewGrid } from '@/components/financials/FinancialFreeviewGrid';
 import { EnterpriseLandscapeChart } from '@/components/financials/EnterpriseLandscapeChart';
+import { cn } from '@/lib/utils';
 
-type View = 'kanban' | 'charts' | 'grid' | 'landscape';
+type View = 'kanban' | 'charts' | 'grid' | 'landscape' | 'datacenters' | 'invoices';
 
 const statusColumns: CostCenterStatus[] = ['on-track', 'over-budget', 'under-review', 'closed'];
 const statusLabels: Record<CostCenterStatus, string> = {
@@ -57,6 +58,8 @@ const FinancialsPage = () => {
   const viewTabs: { id: View; label: string; icon: typeof Kanban }[] = [
     { id: 'kanban', label: 'Cost Centres', icon: Kanban },
     { id: 'charts', label: 'Charts & P&L', icon: BarChart3 },
+    { id: 'invoices', label: 'Invoices', icon: Receipt },
+    { id: 'datacenters', label: 'Data Centres', icon: Server },
     { id: 'grid', label: 'Allocation Grid', icon: Grid3X3 },
     { id: 'landscape', label: 'System Landscape', icon: Map },
   ];
@@ -102,6 +105,8 @@ const FinancialsPage = () => {
 
       {view === 'kanban' && <CostCenterKanban costCenters={costCenters} />}
       {view === 'charts' && <ChartsView monthly={monthly} costCenters={costCenters} departmentSpend={departmentSpend} pieColors={pieColors} />}
+      {view === 'invoices' && <InvoiceKanban />}
+      {view === 'datacenters' && <DataCentersView />}
       {view === 'grid' && <FinancialFreeviewGrid />}
       {view === 'landscape' && <EnterpriseLandscapeChart />}
     </div>
@@ -380,6 +385,247 @@ function ChartsView({ monthly, costCenters, departmentSpend, pieColors }: {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Invoice Kanban ──────────────────────────────────────────────────────────
+
+const INVOICE_STATUS_ORDER: InvoiceStatus[] = ['draft', 'pending', 'approved', 'sent', 'paid', 'overdue', 'disputed'];
+
+const INVOICE_STATUS_CFG: Record<InvoiceStatus, { label: string; color: string; bg: string; dot: string }> = {
+  draft:    { label: 'Draft',    color: 'text-muted-foreground', bg: 'bg-accent',             dot: 'bg-muted-foreground' },
+  pending:  { label: 'Pending',  color: 'text-status-risk',      bg: 'bg-status-risk/10',      dot: 'bg-status-risk' },
+  approved: { label: 'Approved', color: 'text-status-active',    bg: 'bg-status-active/10',    dot: 'bg-status-active' },
+  sent:     { label: 'Sent',     color: 'text-blue-400',         bg: 'bg-blue-400/10',         dot: 'bg-blue-400' },
+  paid:     { label: 'Paid',     color: 'text-status-healthy',   bg: 'bg-status-healthy/10',   dot: 'bg-status-healthy' },
+  overdue:  { label: 'Overdue',  color: 'text-status-critical',  bg: 'bg-status-critical/10',  dot: 'bg-status-critical' },
+  disputed: { label: 'Disputed', color: 'text-orange-400',       bg: 'bg-orange-400/10',       dot: 'bg-orange-400' },
+};
+
+const fmtFull2 = (n: number) => `R${n.toLocaleString()}`;
+
+function InvoiceKanban() {
+  const [invoices, setInvoices] = useState<Invoice[]>(seedInvoices);
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  const filtered = typeFilter === 'all' ? invoices : invoices.filter(i => i.invoiceType === typeFilter);
+
+  const byStatus = useMemo(() => {
+    const map = Object.fromEntries(INVOICE_STATUS_ORDER.map(s => [s, [] as Invoice[]])) as Record<InvoiceStatus, Invoice[]>;
+    filtered.forEach(inv => map[inv.status].push(inv));
+    return map;
+  }, [filtered]);
+
+  const move = (invoiceId: string, newStatus: InvoiceStatus) =>
+    setInvoices(prev => prev.map(i => i.invoiceId === invoiceId ? { ...i, status: newStatus } : i));
+
+  const stats = useMemo(() => ({
+    outstanding: invoices.filter(i => ['pending', 'sent', 'approved'].includes(i.status)).reduce((s, i) => s + i.total, 0),
+    overdue: invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + i.total, 0),
+    paid: invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0),
+  }), [invoices]);
+
+  return (
+    <div className="space-y-3">
+      {/* Mini KPI strip */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Outstanding', value: fmtFull2(stats.outstanding), color: 'text-status-risk' },
+          { label: 'Overdue', value: fmtFull2(stats.overdue), color: 'text-status-critical' },
+          { label: 'Collected', value: fmtFull2(stats.paid), color: 'text-status-healthy' },
+        ].map(s => (
+          <div key={s.label} className="surface-raised border border-border rounded-lg p-3">
+            <div className="text-[10px] text-muted-foreground mb-1">{s.label}</div>
+            <div className={`text-sm font-mono font-bold ${s.color}`}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Type filter */}
+      <div className="flex items-center gap-2">
+        <Filter size={12} className="text-muted-foreground" />
+        {(['all', 'sales', 'repair', 'maintenance', 'hosting'] as const).map(t => (
+          <button key={t} onClick={() => setTypeFilter(t)}
+            className={cn('text-[11px] px-2 py-0.5 rounded-md capitalize transition-colors border',
+              typeFilter === t ? 'bg-status-active/20 text-status-active border-status-active/30' : 'text-muted-foreground border-transparent hover:bg-accent'
+            )}>
+            {t}
+          </button>
+        ))}
+        <span className="ml-auto text-[11px] text-muted-foreground">{filtered.length} invoices · {fmtFull2(filtered.reduce((s, i) => s + i.total, 0))}</span>
+      </div>
+
+      {/* Board */}
+      <div className="overflow-x-auto pb-2">
+        <div className="flex gap-3 min-w-max">
+          {INVOICE_STATUS_ORDER.map(status => {
+            const cfg = INVOICE_STATUS_CFG[status];
+            const items = byStatus[status];
+            const colTotal = items.reduce((s, i) => s + i.total, 0);
+            const nextStatus = INVOICE_STATUS_ORDER[INVOICE_STATUS_ORDER.indexOf(status) + 1] as InvoiceStatus | undefined;
+            const prevStatus = INVOICE_STATUS_ORDER[INVOICE_STATUS_ORDER.indexOf(status) - 1] as InvoiceStatus | undefined;
+            return (
+              <div key={status} className="w-[220px] shrink-0 flex flex-col gap-2">
+                <div className={cn('rounded-md px-2.5 py-1.5 flex items-center justify-between', cfg.bg)}>
+                  <div className="flex items-center gap-1.5">
+                    <div className={cn('w-1.5 h-1.5 rounded-full', cfg.dot)} />
+                    <span className={cn('text-[11px] font-semibold', cfg.color)}>{cfg.label}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">{items.length}</span>
+                </div>
+                {items.length > 0 && <div className="text-[10px] text-muted-foreground font-mono pl-1">{fmtFull2(colTotal)}</div>}
+                <div className="flex flex-col gap-2">
+                  {items.length === 0 && (
+                    <div className="text-[11px] text-muted-foreground/40 text-center py-4 border border-dashed border-border rounded-md">Empty</div>
+                  )}
+                  {items.map(inv => (
+                    <div key={inv.invoiceId} className="surface-raised border border-border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-mono text-muted-foreground">{inv.invoiceId}</span>
+                        <span className={cn('text-[9px] px-1 py-0.5 rounded capitalize', cfg.bg, cfg.color)}>{inv.invoiceType}</span>
+                      </div>
+                      <div className="text-xs font-medium text-foreground truncate mb-1">{inv.description}</div>
+                      <div className="text-sm font-mono font-bold text-foreground mb-1">{fmtFull2(inv.total)}</div>
+                      <div className="text-[10px] text-muted-foreground mb-2">Due {new Date(inv.dueDate).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}</div>
+                      <div className="flex gap-1 flex-wrap">
+                        {prevStatus && !['paid', 'draft'].includes(status) && (
+                          <button onClick={() => move(inv.invoiceId, prevStatus)} className="text-[9px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-accent transition-colors">← Back</button>
+                        )}
+                        {nextStatus && !['paid', 'overdue'].includes(status) && (
+                          <button onClick={() => move(inv.invoiceId, nextStatus)} className={cn('text-[9px] px-1.5 py-0.5 rounded border transition-colors border-status-active/40 text-status-active hover:bg-status-active/10')}>
+                            {nextStatus === 'paid' ? 'Mark Paid ✓' : `→ ${INVOICE_STATUS_CFG[nextStatus].label}`}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Data Centres View ────────────────────────────────────────────────────────
+
+const DC_CHART_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444'];
+
+function DataCentersView() {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const dcCosts = useMemo(() => seedDataCenters.map(dc => {
+    const powerCostMonthly = Math.round(dc.avgPowerKw * dc.powerCostPerKwh * 24 * 30);
+    const total = dc.monthlyRackCost + powerCostMonthly + dc.bandwidthCostMonthly + dc.supportContractMonthly + dc.labourCostMonthly;
+    return { ...dc, powerCostMonthly, total };
+  }), []);
+
+  const activeCost = dcCosts.filter(d => d.status === 'active').reduce((s, d) => s + d.total, 0);
+
+  const pieData = dcCosts.map(dc => ({ name: dc.dcId.replace('DC-', ''), value: dc.total }));
+
+  const barData = dcCosts.map(dc => ({
+    name: dc.dcId,
+    Rack: dc.monthlyRackCost,
+    Power: dc.powerCostMonthly,
+    Bandwidth: dc.bandwidthCostMonthly,
+    Support: dc.supportContractMonthly,
+    Labour: dc.labourCostMonthly,
+  }));
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {/* DC List */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-semibold text-foreground">Data Centre Cost Breakdown</h3>
+          <span className="text-xs text-muted-foreground">Active total: <span className="font-mono text-foreground">{fmtFull2(activeCost)}</span>/mo</span>
+        </div>
+        {dcCosts.map(dc => (
+          <div key={dc.dcId} className="surface-raised border border-border rounded-lg overflow-hidden">
+            <button className="w-full flex items-center gap-3 p-3 hover:bg-accent/40 transition-colors" onClick={() => setExpanded(e => e === dc.dcId ? null : dc.dcId)}>
+              <div className={cn('w-2 h-2 rounded-full shrink-0', dc.status === 'active' ? 'bg-status-healthy' : dc.status === 'maintenance' ? 'bg-status-risk' : 'bg-muted-foreground')} />
+              <div className="flex-1 text-left">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">{dc.name}</span>
+                  <span className="text-[10px] text-muted-foreground">{dc.tier}</span>
+                  <span className={cn('text-[9px] px-1 py-0.5 rounded capitalize', dc.status === 'active' ? 'bg-status-healthy/10 text-status-healthy' : 'bg-status-risk/10 text-status-risk')}>{dc.status}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground">{dc.location} · {dc.region}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-sm font-mono font-bold text-foreground">{fmtFull2(dc.total)}</div>
+                <div className="text-[10px] text-muted-foreground">/month</div>
+              </div>
+              <ChevronRight size={14} className={cn('text-muted-foreground transition-transform', expanded === dc.dcId && 'rotate-90')} />
+            </button>
+            {expanded === dc.dcId && (
+              <div className="border-t border-border px-3 pb-3 pt-2 grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Rack Cost', value: fmtFull2(dc.monthlyRackCost) },
+                  { label: 'Power', value: fmtFull2(dc.powerCostMonthly) },
+                  { label: 'Bandwidth', value: fmtFull2(dc.bandwidthCostMonthly) },
+                  { label: 'Support', value: fmtFull2(dc.supportContractMonthly) },
+                  { label: 'Labour', value: fmtFull2(dc.labourCostMonthly) },
+                  { label: 'Headcount', value: `${dc.headcount} FTE` },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <div className="text-[10px] text-muted-foreground">{label}</div>
+                    <div className="text-xs font-mono text-foreground">{value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div className="flex flex-col gap-4">
+        <div className="surface-raised border border-border rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Cost Distribution by DC</h3>
+          <div className="flex items-center gap-4">
+            <ResponsiveContainer width={180} height={180}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
+                  {pieData.map((_, i) => <Cell key={i} fill={DC_CHART_COLORS[i % DC_CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v: number) => fmtFull2(v)} contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-col gap-1.5">
+              {pieData.map((d, i) => (
+                <div key={d.name} className="flex items-center gap-2 text-[11px]">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: DC_CHART_COLORS[i % DC_CHART_COLORS.length] }} />
+                  <span className="text-muted-foreground">{d.name}</span>
+                  <span className="font-mono text-foreground ml-auto">{fmtFull2(dcCosts[i].total)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="surface-raised border border-border rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Cost Components by DC</h3>
+          <ResponsiveContainer width="100%" height={210}>
+            <BarChart data={barData} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} angle={-25} textAnchor="end" />
+              <YAxis tickFormatter={v => `R${(v/1000).toFixed(0)}k`} tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+              <Tooltip formatter={(v: number) => fmtFull2(v)} contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Bar dataKey="Rack" stackId="a" fill="#3b82f6" />
+              <Bar dataKey="Power" stackId="a" fill="#f59e0b" />
+              <Bar dataKey="Bandwidth" stackId="a" fill="#8b5cf6" />
+              <Bar dataKey="Support" stackId="a" fill="#10b981" />
+              <Bar dataKey="Labour" stackId="a" fill="#ef4444" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

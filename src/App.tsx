@@ -18,6 +18,7 @@ import TasksPage from "./pages/TasksPage";
 import AssistantPage from "./pages/AssistantPage";
 import ScenariosPage from "./pages/ScenariosPage";
 import NotFound from "./pages/NotFound";
+import { PwaManager } from "@/components/pwa/PwaManager";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <PwaManager />
       <BrowserRouter>
         <DemoProvider>
           <AppShell>

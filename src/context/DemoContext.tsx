@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
 import {
   type Role, type Order, type AppEvent, type Document, type Repair,
   type Approval, type Task, type StickyNote, type Product, type OrderStage,
@@ -38,6 +38,8 @@ type DemoAction =
   | { type: 'UPDATE_TASK_STATUS'; taskId: string; status: Task['status'] }
   | { type: 'RESET' };
 
+const STORAGE_KEY = 'itson-pro-state-v1';
+
 const initialState: DemoState = {
   role: 'gm',
   orders: seedOrders,
@@ -50,6 +52,28 @@ const initialState: DemoState = {
   products: seedProducts,
   selectedOrderId: null,
 };
+
+function loadPersistedState(): DemoState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return initialState;
+    const parsed = JSON.parse(raw) as Partial<DemoState>;
+    // Merge with initialState so any new seed fields are always present
+    return { ...initialState, ...parsed, selectedOrderId: null };
+  } catch {
+    return initialState;
+  }
+}
+
+function persistState(state: DemoState) {
+  try {
+    // Don't persist selectedOrderId — it's transient UI state
+    const { selectedOrderId: _, ...persistable } = state;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
+  } catch {
+    // Storage quota exceeded or unavailable — silently ignore
+  }
+}
 
 function demoReducer(state: DemoState, action: DemoAction): DemoState {
   switch (action.type) {
@@ -109,8 +133,10 @@ function demoReducer(state: DemoState, action: DemoAction): DemoState {
       );
       return { ...state, tasks };
     }
-    case 'RESET':
+    case 'RESET': {
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
       return { ...initialState };
+    }
     default:
       return state;
   }
@@ -127,7 +153,12 @@ interface DemoContextType {
 const DemoContext = createContext<DemoContextType | null>(null);
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(demoReducer, initialState);
+  const [state, dispatch] = useReducer(demoReducer, undefined, loadPersistedState);
+
+  // Persist state to localStorage on every change (debounced via useEffect)
+  useEffect(() => {
+    persistState(state);
+  }, [state]);
 
   const makeEvent = useCallback((partial: Omit<AppEvent, 'eventId' | 'timestamp'>): AppEvent => ({
     ...partial,

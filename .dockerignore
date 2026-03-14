@@ -1,0 +1,47 @@
+# Dependencies — reinstalled inside container
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+
+# Git
+.git/
+.gitignore
+
+# Editor & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Test & CI
+coverage/
+*.test.ts
+*.spec.ts
+playwright-report/
+test-results/
+playwright.config.ts
+vitest.config.ts
+
+# Env files (never bake secrets into images)
+.env
+.env.*
+!.env.example
+
+# Docs
+*.md
+!README.md
+
+# Docker files themselves
+Dockerfile*
+docker-compose*
+nginx.conf
+
+# Logs
+*.log
+npm-debug.log*

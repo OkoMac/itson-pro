@@ -518,3 +518,65 @@ export const seedFinancialSummary: FinancialSummary = {
   accountsPayable: 456000,
   cashPosition: 1240000,
 };
+
+// ===== DATA CENTRES =====
+
+export interface DataCenter {
+  dcId: string;
+  name: string;
+  location: string;
+  region: string;
+  tier: 'Tier 1' | 'Tier 2' | 'Tier 3';
+  status: 'active' | 'maintenance' | 'decommissioned';
+  monthlyRackCost: number;
+  powerCostPerKwh: number;
+  avgPowerKw: number;
+  bandwidthCostMonthly: number;
+  supportContractMonthly: number;
+  headcount: number;
+  labourCostMonthly: number;
+}
+
+export const seedDataCenters: DataCenter[] = [
+  { dcId: 'DC-JHB-01', name: 'Johannesburg Primary', location: 'Sandton Data Hub', region: 'Gauteng', tier: 'Tier 3', status: 'active', monthlyRackCost: 45000, powerCostPerKwh: 2.15, avgPowerKw: 85, bandwidthCostMonthly: 12000, supportContractMonthly: 8500, headcount: 3, labourCostMonthly: 78000 },
+  { dcId: 'DC-JHB-02', name: 'Johannesburg DR', location: 'Midrand Carrier Hotel', region: 'Gauteng', tier: 'Tier 2', status: 'active', monthlyRackCost: 22000, powerCostPerKwh: 2.20, avgPowerKw: 42, bandwidthCostMonthly: 6500, supportContractMonthly: 4200, headcount: 1, labourCostMonthly: 28000 },
+  { dcId: 'DC-CPT-01', name: 'Cape Town Node', location: 'Century City Exchange', region: 'Western Cape', tier: 'Tier 2', status: 'active', monthlyRackCost: 18500, powerCostPerKwh: 2.35, avgPowerKw: 36, bandwidthCostMonthly: 5800, supportContractMonthly: 3800, headcount: 1, labourCostMonthly: 26000 },
+  { dcId: 'DC-DBN-01', name: 'Durban Edge', location: 'Umhlanga Tech Park', region: 'KwaZulu-Natal', tier: 'Tier 1', status: 'maintenance', monthlyRackCost: 9500, powerCostPerKwh: 2.10, avgPowerKw: 18, bandwidthCostMonthly: 3200, supportContractMonthly: 1900, headcount: 0, labourCostMonthly: 0 },
+  { dcId: 'DC-PTA-01', name: 'Pretoria Gov Node', location: 'Centurion Data Exchange', region: 'Gauteng', tier: 'Tier 2', status: 'active', monthlyRackCost: 16000, powerCostPerKwh: 2.08, avgPowerKw: 30, bandwidthCostMonthly: 4500, supportContractMonthly: 3200, headcount: 1, labourCostMonthly: 24500 },
+];
+
+// ===== INVOICES =====
+
+export type InvoiceStatus = 'draft' | 'pending' | 'approved' | 'sent' | 'paid' | 'overdue' | 'disputed';
+export type InvoiceType = 'sales' | 'repair' | 'maintenance' | 'hosting';
+
+export interface Invoice {
+  invoiceId: string;
+  invoiceType: InvoiceType;
+  customerId: string;
+  linkedEntityId: string;
+  amount: number;
+  tax: number;
+  total: number;
+  status: InvoiceStatus;
+  issuedDate: string;
+  dueDate: string;
+  paidDate?: string;
+  description: string;
+  assignedTo: string;
+}
+
+export const seedInvoices: Invoice[] = [
+  { invoiceId: 'INV-2026-001', invoiceType: 'sales', customerId: 'CUST-001', linkedEntityId: 'CLG-2145', amount: 11470, tax: 1720, total: 13190, status: 'pending', issuedDate: '2026-03-10', dueDate: '2026-04-09', description: 'Pick n Pay — Order CLG-2145', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-002', invoiceType: 'sales', customerId: 'CUST-002', linkedEntityId: 'CLG-2146', amount: 18400, tax: 2760, total: 21160, status: 'sent', issuedDate: '2026-03-08', dueDate: '2026-04-07', description: 'Dis-Chem — Order CLG-2146', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-003', invoiceType: 'sales', customerId: 'CUST-003', linkedEntityId: 'CLG-2147', amount: 6720, tax: 1008, total: 7728, status: 'draft', issuedDate: '2026-03-06', dueDate: '2026-04-05', description: 'Netcare — Order CLG-2147', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-004', invoiceType: 'sales', customerId: 'CUST-004', linkedEntityId: 'CLG-2148', amount: 4250, tax: 637, total: 4887, status: 'approved', issuedDate: '2026-03-05', dueDate: '2026-04-04', description: 'Woolworths — Order CLG-2148', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-005', invoiceType: 'sales', customerId: 'CUST-005', linkedEntityId: 'CLG-2149', amount: 15600, tax: 2340, total: 17940, status: 'paid', issuedDate: '2026-02-28', dueDate: '2026-03-29', paidDate: '2026-03-08', description: 'Sandton Office Park — Order CLG-2149', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-006', invoiceType: 'sales', customerId: 'CUST-006', linkedEntityId: 'CLG-2150', amount: 3150, tax: 472, total: 3622, status: 'sent', issuedDate: '2026-03-03', dueDate: '2026-04-02', description: 'Rosebank Mall — Order CLG-2150', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-007', invoiceType: 'repair', customerId: 'CUST-002', linkedEntityId: 'REP-001', amount: 1890, tax: 283, total: 2173, status: 'pending', issuedDate: '2026-03-10', dueDate: '2026-04-09', description: 'Dis-Chem — HD-200 Motor Repair', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-008', invoiceType: 'repair', customerId: 'CUST-005', linkedEntityId: 'REP-002', amount: 520, tax: 78, total: 598, status: 'approved', issuedDate: '2026-03-09', dueDate: '2026-04-08', description: 'Sandton Office Park — SD-110 Pump Repair', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-009', invoiceType: 'hosting', customerId: 'CUST-001', linkedEntityId: 'DC-JHB-01', amount: 8500, tax: 1275, total: 9775, status: 'paid', issuedDate: '2026-03-01', dueDate: '2026-03-31', paidDate: '2026-03-05', description: 'Managed hosting — JHB Primary DC', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-010', invoiceType: 'maintenance', customerId: 'CUST-003', linkedEntityId: 'CLG-2147', amount: 2400, tax: 360, total: 2760, status: 'overdue', issuedDate: '2026-02-01', dueDate: '2026-03-03', description: 'Netcare — Monthly maintenance Feb 2026', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-011', invoiceType: 'sales', customerId: 'CUST-001', linkedEntityId: 'CLG-2151', amount: 8900, tax: 1335, total: 10235, status: 'draft', issuedDate: '2026-03-11', dueDate: '2026-04-10', description: 'Pick n Pay — Order CLG-2151', assignedTo: 'Priya Sharma' },
+  { invoiceId: 'INV-2026-012', invoiceType: 'hosting', customerId: 'CUST-002', linkedEntityId: 'DC-CPT-01', amount: 5800, tax: 870, total: 6670, status: 'disputed', issuedDate: '2026-03-01', dueDate: '2026-03-31', description: 'Dis-Chem — CPT colocation rack', assignedTo: 'Priya Sharma' },
+];
