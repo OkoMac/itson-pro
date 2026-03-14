@@ -1,17 +1,26 @@
 import { useDemo } from '@/context/DemoContext';
 import { Play, RotateCcw, Package, AlertTriangle, FileText, Wrench, Truck, Brain } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const scenarios = [
-  { id: 'po-arrival', label: 'Simulate PO Arrival', icon: Package, description: 'PO received → OCR → Order created → CLG-2145 highlighted' },
-  { id: 'stock-shortage', label: 'Simulate Stock Shortage', icon: AlertTriangle, description: 'SD-110 stock low → Task created → Order at risk' },
-  { id: 'branding-instruction', label: 'Simulate Branding Document', icon: FileText, description: 'Branding instruction → Note added → Communication cluster' },
-  { id: 'repair-approval', label: 'Simulate Repair Approval', icon: Wrench, description: 'Assessment → Quote → Margin exception approval triggered' },
-  { id: 'dispatch', label: 'Simulate Dispatch', icon: Truck, description: 'CLG-2150 dispatched → Events generated' },
-  { id: 'reset', label: 'Reset Demo', icon: RotateCcw, description: 'Restore all data to seeded baseline state' },
+  { id: 'po-arrival', label: 'Simulate PO Arrival', icon: Package, description: 'PO received → OCR → Order created → CLG-2145 highlighted', navigateTo: '/orders' },
+  { id: 'stock-shortage', label: 'Simulate Stock Shortage', icon: AlertTriangle, description: 'SD-110 stock low → Task created → Order at risk', navigateTo: '/stock' },
+  { id: 'branding-instruction', label: 'Simulate Branding Document', icon: FileText, description: 'Branding instruction → Note added → Communication cluster', navigateTo: '/documents' },
+  { id: 'repair-approval', label: 'Simulate Repair Approval', icon: Wrench, description: 'Assessment → Quote → Margin exception approval triggered', navigateTo: '/repairs' },
+  { id: 'dispatch', label: 'Simulate Dispatch', icon: Truck, description: 'CLG-2150 dispatched → Events generated', navigateTo: '/orders' },
+  { id: 'reset', label: 'Reset Demo', icon: RotateCcw, description: 'Restore all data to seeded baseline state', navigateTo: '/' },
 ];
 
 const ScenariosPage = () => {
   const { launchScenario } = useDemo();
+  const navigate = useNavigate();
+
+  const handleLaunch = (id: string, navigateTo: string) => {
+    launchScenario(id);
+    if (id !== 'reset') {
+      setTimeout(() => navigate(navigateTo), 500);
+    }
+  };
 
   return (
     <div>
@@ -22,7 +31,7 @@ const ScenariosPage = () => {
         {scenarios.map(s => (
           <button
             key={s.id}
-            onClick={() => launchScenario(s.id)}
+            onClick={() => handleLaunch(s.id, s.navigateTo)}
             className="surface-raised border border-border rounded-lg p-4 text-left hover:border-muted-foreground/40 transition-colors group"
           >
             <div className="flex items-center gap-2 mb-2">

@@ -1,30 +1,42 @@
 import { useDemo } from '@/context/DemoContext';
-import { Wrench, X, AlertTriangle, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { Wrench, X, AlertTriangle, CheckCircle, Clock, DollarSign, Plus } from 'lucide-react';
 import { useState } from 'react';
 import type { Repair } from '@/data/seed';
 import { SeverityBadge } from '@/components/shared/Badges';
+import { toast } from 'sonner';
 
 const RepairsPage = () => {
   const { state, dispatch, customers } = useDemo();
   const [selected, setSelected] = useState<Repair | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const getCustomer = (id: string) => customers.find(c => c.customerId === id)?.name || id;
 
-  const filtered = statusFilter === 'all'
-    ? state.repairs
-    : state.repairs.filter(r => r.status === statusFilter);
+  const filtered = state.repairs
+    .filter(r => statusFilter === 'all' || r.status === statusFilter)
+    .filter(r => approvalFilter === 'all' || r.approvalStatus === approvalFilter);
+
+  const pendingApproval = state.repairs.filter(r => r.approvalStatus === 'pending' && r.marginPct > 0 && r.marginPct < 18).length;
+  const totalQuoteValue = state.repairs.reduce((s, r) => s + r.quoteValue, 0);
 
   return (
     <div className="flex gap-4 h-[calc(100vh-7rem)]">
       <div className={`flex-1 overflow-auto ${selected ? 'max-w-[60%]' : ''}`}>
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-semibold text-foreground">Repairs Module</h1>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Repairs Module</h1>
+            <p className="text-[11px] text-muted-foreground">{filtered.length} repairs • {pendingApproval} margin exceptions • R{totalQuoteValue.toLocaleString()} total</p>
+          </div>
           <div className="flex items-center gap-2">
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="h-7 rounded-md bg-secondary border border-border px-2 text-xs text-foreground"
-            >
+            <select value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)}
+              className="h-7 rounded-md bg-secondary border border-border px-2 text-xs text-foreground">
+              <option value="all">All Approval</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              className="h-7 rounded-md bg-secondary border border-border px-2 text-xs text-foreground">
               <option value="all">All Status</option>
               <option value="assessment">Assessment</option>
               <option value="quoted">Quoted</option>
@@ -32,19 +44,18 @@ const RepairsPage = () => {
               <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
-            <span className="text-[11px] text-muted-foreground">{filtered.length} repairs</span>
+            {(statusFilter !== 'all' || approvalFilter !== 'all') && (
+              <button onClick={() => { setStatusFilter('all'); setApprovalFilter('all'); }} className="text-[10px] text-status-active hover:underline">Clear</button>
+            )}
           </div>
         </div>
 
         <div className="space-y-3">
           {filtered.map(r => (
-            <button
-              key={r.repairId}
-              onClick={() => setSelected(r)}
+            <button key={r.repairId} onClick={() => setSelected(r)}
               className={`w-full text-left surface-raised border rounded-lg p-4 transition-colors hover:border-muted-foreground/40 ${
                 selected?.repairId === r.repairId ? 'border-status-active/50' : 'border-border'
-              }`}
-            >
+              }`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Wrench size={16} className="text-muted-foreground" />
@@ -78,6 +89,12 @@ const RepairsPage = () => {
               )}
             </button>
           ))}
+          {filtered.length === 0 && (
+            <div className="surface-raised border border-border rounded-lg p-8 text-center">
+              <Wrench size={24} className="text-muted-foreground mx-auto mb-2 opacity-40" />
+              <p className="text-xs text-muted-foreground">No repairs match this filter</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -102,6 +119,40 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
   const totalCost = repair.partsCost + repair.labourCost;
   const marginAmount = repair.quoteValue - totalCost;
 
+  const handleApprove = (approvalId: string) => {
+    dispatch({ type: 'APPROVE_ITEM', approvalId });
+    dispatch({ type: 'ADD_EVENT', event: {
+      eventId: `EVT-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      type: 'ApprovalApproved',
+      entityType: 'repair',
+      entityId: repair.repairId,
+      title: `Repair ${repair.repairId} Approved`,
+      description: `Margin exception approved at ${repair.marginPct}%`,
+      department: 'Finance',
+      owner: state.role,
+      severity: 'info',
+      status: 'new',
+      tags: ['approval', 'repair'],
+    }});
+    toast.success('✅ Repair Approved', { description: `${repair.repairId} — R${repair.quoteValue.toLocaleString()}` });
+  };
+
+  const handleCreateTask = () => {
+    dispatch({ type: 'ADD_TASK', task: {
+      taskId: `TSK-${Date.now()}`,
+      linkedEntityType: 'repair',
+      linkedEntityId: repair.repairId,
+      title: `Follow up repair ${repair.repairId} — ${repair.unitModel}`,
+      owner: 'Michael Botha',
+      priority: 'medium',
+      dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+      status: 'open',
+      department: 'Technical',
+    }});
+    toast.info('📋 Task Created', { description: `Follow up on ${repair.repairId}` });
+  };
+
   return (
     <div className="surface-raised border border-border rounded-lg h-full flex flex-col animate-slide-in-right">
       <div className="p-4 border-b border-border">
@@ -115,16 +166,13 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
               'bg-accent text-muted-foreground'
             }`}>{repair.status}</span>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X size={16} />
-          </button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
         </div>
         <div className="text-xs text-muted-foreground">{customer?.name} • {repair.unitModel}</div>
         <p className="text-xs text-foreground mt-1">{repair.fault}</p>
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-5">
-        {/* Cost Breakdown */}
         {repair.quoteValue > 0 && (
           <div>
             <h3 className="text-xs font-medium text-foreground mb-3">Cost & Margin Analysis</h3>
@@ -144,23 +192,16 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
                 <div className="text-[10px] text-muted-foreground">Quote Value</div>
               </div>
               <div className="surface-overlay rounded-md p-3 text-center">
-                <div className={`text-lg font-mono font-semibold ${repair.marginPct < 18 ? 'text-status-critical' : 'text-status-healthy'}`}>
-                  {repair.marginPct}%
-                </div>
+                <div className={`text-lg font-mono font-semibold ${repair.marginPct < 18 ? 'text-status-critical' : 'text-status-healthy'}`}>{repair.marginPct}%</div>
                 <div className="text-[10px] text-muted-foreground">Gross Margin</div>
               </div>
             </div>
-
-            {repair.marginPct < 18 && (
+            {repair.marginPct < 18 && repair.marginPct > 0 && (
               <div className="mt-3 surface-overlay border border-status-critical/20 rounded-md p-3 flex items-center gap-2">
                 <AlertTriangle size={14} className="text-status-critical shrink-0" />
-                <span className="text-[11px] text-status-critical">
-                  Margin below 18% threshold — requires finance approval
-                </span>
+                <span className="text-[11px] text-status-critical">Margin below 18% threshold — requires finance approval</span>
               </div>
             )}
-
-            {/* Margin bar */}
             <div className="mt-3">
               <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
                 <span>Cost: R{totalCost.toLocaleString()}</span>
@@ -171,16 +212,10 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
                 <div className="bg-status-risk/60 h-full" style={{ width: `${(repair.labourCost / repair.quoteValue) * 100}%` }} />
                 <div className={`h-full ${repair.marginPct < 18 ? 'bg-status-critical/30' : 'bg-status-healthy/60'}`} style={{ width: `${repair.marginPct}%` }} />
               </div>
-              <div className="flex items-center gap-3 mt-1 text-[9px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-status-critical/60" />Parts</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-status-risk/60" />Labour</span>
-                <span className="flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${repair.marginPct < 18 ? 'bg-status-critical/30' : 'bg-status-healthy/60'}`} />Margin</span>
-              </div>
             </div>
           </div>
         )}
 
-        {/* Approval Status */}
         {relatedApproval && (
           <div>
             <h3 className="text-xs font-medium text-foreground mb-2">Approval</h3>
@@ -196,10 +231,8 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
               <p className="text-[11px] text-muted-foreground">{relatedApproval.reason}</p>
               {relatedApproval.status === 'pending' && (
                 <div className="flex items-center gap-2 mt-2">
-                  <button
-                    onClick={() => dispatch({ type: 'APPROVE_ITEM', approvalId: relatedApproval.approvalId })}
-                    className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-status-healthy/10 text-status-healthy hover:bg-status-healthy/20 flex items-center gap-1"
-                  >
+                  <button onClick={() => handleApprove(relatedApproval.approvalId)}
+                    className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-status-healthy/10 text-status-healthy hover:bg-status-healthy/20 flex items-center gap-1">
                     <CheckCircle size={10} /> Approve
                   </button>
                 </div>
@@ -208,7 +241,15 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
           </div>
         )}
 
-        {/* Documents */}
+        <div>
+          <h3 className="text-xs font-medium text-foreground mb-2">Quick Actions</h3>
+          <div className="flex gap-2">
+            <button onClick={handleCreateTask} className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-accent text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <Plus size={10} /> Create Task
+            </button>
+          </div>
+        </div>
+
         {relatedDocs.length > 0 && (
           <div>
             <h3 className="text-xs font-medium text-foreground mb-2">Documents</h3>
@@ -223,7 +264,6 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
           </div>
         )}
 
-        {/* Tasks */}
         {relatedTasks.length > 0 && (
           <div>
             <h3 className="text-xs font-medium text-foreground mb-2">Tasks</h3>
@@ -241,7 +281,6 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
           </div>
         )}
 
-        {/* Notes */}
         {relatedNotes.length > 0 && (
           <div>
             <h3 className="text-xs font-medium text-foreground mb-2">Notes</h3>
@@ -256,7 +295,6 @@ function RepairDetailDrawer({ repair, onClose }: { repair: Repair; onClose: () =
           </div>
         )}
 
-        {/* Event History */}
         {relatedEvents.length > 0 && (
           <div>
             <h3 className="text-xs font-medium text-foreground mb-2">Event History</h3>
