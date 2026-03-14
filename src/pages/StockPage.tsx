@@ -1,11 +1,16 @@
 import { useDemo } from '@/context/DemoContext';
-import { Box, AlertTriangle, TrendingDown, Package } from 'lucide-react';
+import { Box, AlertTriangle, TrendingDown, Package, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { toast } from 'sonner';
 
 const StockPage = () => {
-  const { state } = useDemo();
+  const { state, dispatch } = useDemo();
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const lowStock = state.products.filter(p => p.stockOnHand <= p.reorderLevel);
   const activeOrders = state.orders.filter(o => o.status === 'active');
+  const categories = [...new Set(state.products.map(p => p.category))];
+
+  const filtered = categoryFilter === 'all' ? state.products : state.products.filter(p => p.category === categoryFilter);
 
   const getBlockedOrders = (sku: string) => {
     return activeOrders.filter(o => o.lines.some(l => {
@@ -14,16 +19,14 @@ const StockPage = () => {
     }));
   };
 
-  // Chart data
-  const stockChartData = state.products.map(p => ({
+  const stockChartData = filtered.map(p => ({
     name: p.sku,
     onHand: p.stockOnHand,
     reorder: p.reorderLevel,
     low: p.stockOnHand <= p.reorderLevel,
   }));
 
-  // Consumption data (simulated)
-  const topMoving = state.products
+  const topMoving = filtered
     .map(p => {
       const totalRequired = activeOrders.reduce((sum, o) => {
         return sum + o.lines.filter(l => l.sku === p.sku).reduce((s, l) => s + l.qty, 0);
@@ -34,14 +37,53 @@ const StockPage = () => {
 
   const blockedOrderCount = lowStock.reduce((sum, p) => sum + getBlockedOrders(p.sku).length, 0);
 
+  const handleReorder = (sku: string) => {
+    const product = state.products.find(p => p.sku === sku);
+    if (!product) return;
+    dispatch({ type: 'ADD_TASK', task: {
+      taskId: `TSK-${Date.now()}`,
+      linkedEntityType: 'product',
+      linkedEntityId: sku,
+      title: `Reorder ${product.productName} — current stock: ${product.stockOnHand}`,
+      owner: 'Sarah Chen',
+      priority: 'high',
+      dueDate: new Date(Date.now() + 86400000 * product.leadTimeDays).toISOString().split('T')[0],
+      status: 'open',
+      department: 'Procurement',
+    }});
+    dispatch({ type: 'ADD_EVENT', event: {
+      eventId: `EVT-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      type: 'TaskCreated',
+      entityType: 'product',
+      entityId: sku,
+      title: `Reorder Task: ${sku}`,
+      description: `Procurement task created for ${product.productName}`,
+      department: 'Procurement',
+      owner: 'Sarah Chen',
+      severity: 'medium',
+      status: 'new',
+      tags: ['reorder', 'procurement'],
+    }});
+    toast.success('📦 Reorder Task Created', { description: `${product.productName} — ${product.leadTimeDays}d lead time` });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">Stock & Consumables</h1>
-        <span className="text-[11px] text-muted-foreground">{state.products.length} products tracked</span>
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Stock & Consumables</h1>
+          <p className="text-[11px] text-muted-foreground">{state.products.length} products tracked</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+            className="h-7 rounded-md bg-secondary border border-border px-2 text-xs text-foreground">
+            <option value="all">All Categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
-      {/* KPI Row */}
       <div className="grid grid-cols-4 gap-3">
         <div className="surface-raised border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 mb-1">
@@ -74,7 +116,6 @@ const StockPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Stock Levels Chart */}
         <div className="surface-raised border border-border rounded-lg p-4">
           <h3 className="text-sm font-semibold text-foreground mb-4">Stock vs Reorder Level</h3>
           <div className="h-[260px]">
@@ -83,19 +124,17 @@ const StockPage = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 12%, 20%)" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(215, 10%, 48%)' }} />
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(215, 10%, 48%)' }} />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload;
-                    return (
-                      <div className="surface-raised border border-border rounded p-2 text-xs shadow-lg">
-                        <p className="text-foreground font-medium">{d.name}</p>
-                        <p className="font-mono">On Hand: {d.onHand}</p>
-                        <p className="font-mono">Reorder: {d.reorder}</p>
-                      </div>
-                    );
-                  }}
-                />
+                <Tooltip content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const d = payload[0].payload;
+                  return (
+                    <div className="surface-raised border border-border rounded p-2 text-xs shadow-lg">
+                      <p className="text-foreground font-medium">{d.name}</p>
+                      <p className="font-mono">On Hand: {d.onHand}</p>
+                      <p className="font-mono">Reorder: {d.reorder}</p>
+                    </div>
+                  );
+                }} />
                 <Bar dataKey="onHand" name="On Hand" radius={[4, 4, 0, 0]}>
                   {stockChartData.map((entry, i) => (
                     <Cell key={i} fill={entry.low ? 'hsl(0, 72%, 51%)' : 'hsl(217, 91%, 60%)'} opacity={0.8} />
@@ -107,7 +146,6 @@ const StockPage = () => {
           </div>
         </div>
 
-        {/* Demand by SKU */}
         <div className="surface-raised border border-border rounded-lg p-4">
           <h3 className="text-sm font-semibold text-foreground mb-4">Active Demand (Open Orders)</h3>
           <div className="space-y-2">
@@ -127,10 +165,8 @@ const StockPage = () => {
                     </div>
                   </div>
                   <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${pctUsed > 100 ? 'bg-status-critical' : pctUsed > 70 ? 'bg-status-risk' : 'bg-status-active'}`}
-                      style={{ width: `${Math.min(pctUsed, 100)}%` }}
-                    />
+                    <div className={`h-full rounded-full transition-all ${pctUsed > 100 ? 'bg-status-critical' : pctUsed > 70 ? 'bg-status-risk' : 'bg-status-active'}`}
+                      style={{ width: `${Math.min(pctUsed, 100)}%` }} />
                   </div>
                   {blocked.length > 0 && (
                     <p className="text-[10px] text-status-critical mt-1">⚠ Blocking: {blocked.map(o => o.orderId).join(', ')}</p>
@@ -142,7 +178,6 @@ const StockPage = () => {
         </div>
       </div>
 
-      {/* Low Stock Alerts */}
       {lowStock.length > 0 && (
         <div className="surface-raised border border-status-critical/20 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -164,6 +199,10 @@ const StockPage = () => {
                   <div className="flex items-center gap-3">
                     <span className="text-status-critical font-mono">{p.stockOnHand} / {p.reorderLevel}</span>
                     <span className="text-muted-foreground">{p.leadTimeDays}d lead</span>
+                    <button onClick={() => handleReorder(p.sku)}
+                      className="text-[10px] font-medium px-2 py-1 rounded-md bg-status-active/10 text-status-active hover:bg-status-active/20 flex items-center gap-1">
+                      <RefreshCw size={10} /> Reorder
+                    </button>
                   </div>
                 </div>
               );
@@ -172,7 +211,6 @@ const StockPage = () => {
         </div>
       )}
 
-      {/* Full Stock Table */}
       <div className="surface-raised border border-border rounded-lg overflow-hidden">
         <table className="w-full text-xs">
           <thead>
@@ -185,10 +223,11 @@ const StockPage = () => {
               <th className="text-right px-4 py-2 text-muted-foreground font-medium">Reorder</th>
               <th className="text-right px-4 py-2 text-muted-foreground font-medium">Lead Time</th>
               <th className="text-left px-4 py-2 text-muted-foreground font-medium">Status</th>
+              <th className="text-left px-4 py-2 text-muted-foreground font-medium">Action</th>
             </tr>
           </thead>
           <tbody>
-            {state.products.map(p => {
+            {filtered.map(p => {
               const low = p.stockOnHand <= p.reorderLevel;
               return (
                 <tr key={p.sku} className="border-b border-border last:border-0 hover:bg-accent/30">
@@ -204,6 +243,12 @@ const StockPage = () => {
                       low ? 'bg-status-critical/10 text-status-critical' : 'bg-status-healthy/10 text-status-healthy'
                     }`}>{low ? 'Low' : 'OK'}</span>
                   </td>
+                  <td className="px-4 py-3">
+                    {low && (
+                      <button onClick={() => handleReorder(p.sku)}
+                        className="text-[10px] text-status-active hover:underline">Reorder</button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -214,4 +259,5 @@ const StockPage = () => {
   );
 };
 
+import { useState } from 'react';
 export default StockPage;
