@@ -159,14 +159,14 @@ function useGlobalSearch(query: string, state: ReturnType<typeof useDemo>['state
     for (const a of state.approvals) {
       if (
         a.approvalId.toLowerCase().includes(q) ||
-        a.title.toLowerCase().includes(q) ||
+        a.reason.toLowerCase().includes(q) ||
         a.requestedBy.toLowerCase().includes(q)
       ) {
         results.push({
           id: a.approvalId,
           type: 'approval',
-          title: a.title,
-          subtitle: `${a.approvalId} · ${a.status}`,
+          title: `${a.approvalType} — ${a.approvalId}`,
+          subtitle: `${a.requestedBy} · ${a.status}`,
           badge: a.status === 'pending' ? 'Pending' : undefined,
           badgeVariant: 'info',
           href: '/approvals',
