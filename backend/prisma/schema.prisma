@@ -1,0 +1,461 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  firstName     String?
+  lastName      String?
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  customers     Customer[]
+  orders        Order[]
+  tasks         Task[]
+  approvals     Approval[]
+  repairs       Repair[]
+  systemEvents  SystemEvent[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  USER
+  VIEWER
+}
+
+// Customer Management
+model Customer {
+  id              String   @id @default(cuid())
+  customerId      String   @unique
+  name            String
+  segment         String
+  accountManager  String
+  location        String
+  priority        Priority @default(MEDIUM)
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  status          CustomerStatus @default(ACTIVE)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  orders          Order[]
+  invoices        Invoice[]
+  repairs         Repair[]
+
+  @@map("customers")
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+  ARCHIVED
+}
+
+// Product Catalog
+model Product {
+  id              String   @id @default(cuid())
+  sku             String   @unique
+  category        String
+  productName     String
+  description     String?
+  unitPrice       Float
+  costPrice       Float
+  stockOnHand     Int      @default(0)
+  reorderLevel    Int      @default(10)
+  leadTimeDays    Int      @default(7)
+  status          ProductStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  orderLines        OrderLine[]
+  stockTransactions StockTransaction[]
+
+  @@map("products")
+}
+
+enum ProductStatus {
+  ACTIVE
+  DISCONTINUED
+  OUT_OF_STOCK
+  PRE_ORDER
+}
+
+// Order Management
+model Order {
+  id              String      @id @default(cuid())
+  orderId         String      @unique
+  customerId      String
+  poNumber        String?
+  status          OrderStatus @default(PENDING)
+  currentStage    OrderStage  @default(ORDER_RECEIVED)
+  owner           String
+  dueDate         DateTime
+  value           Float
+  riskStatus      RiskStatus  @default(NONE)
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
+  lines           OrderLine[]
+  invoices        Invoice[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum OrderStage {
+  ORDER_RECEIVED
+  PROCUREMENT
+  IN_PRODUCTION
+  WAITING_FOR_STOCK
+  FILLING
+  BRANDING
+  DISPATCH_READY
+  DISPATCHED
+  DELIVERED
+}
+
+enum RiskStatus {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model OrderLine {
+  id              String   @id @default(cuid())
+  orderLineId     String   @unique
+  orderId         String
+  sku             String
+  qty             Int
+  unitPrice       Float
+  lineTotal       Float
+  status          OrderLineStatus @default(PENDING)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  order           Order    @relation(fields: [orderId], references: [id])
+  product         Product? @relation(fields: [sku], references: [sku])
+
+  @@map("order_lines")
+}
+
+enum OrderLineStatus {
+  PENDING
+  ALLOCATED
+  PICKED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+// Financial Management
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceId       String        @unique
+  orderId         String?
+  customerId      String
+  invoiceType     InvoiceType   @default(SALES)
+  description     String
+  total           Float
+  taxAmount       Float         @default(0)
+  dueDate         DateTime
+  status          InvoiceStatus @default(DRAFT)
+  paidAt          DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  order           Order?        @relation(fields: [orderId], references: [id])
+  customer        Customer      @relation(fields: [customerId], references: [id])
+
+  @@map("invoices")
+}
+
+enum InvoiceType {
+  SALES
+  REPAIR
+  MAINTENANCE
+  HOSTING
+  CONSULTING
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  SENT
+  PAID
+  OVERDUE
+  DISPUTED
+  CANCELLED
+}
+
+// Stock Management
+model StockTransaction {
+  id              String                @id @default(cuid())
+  transactionId   String                @unique
+  sku             String
+  transactionType StockTransactionType
+  qty             Int
+  unitCost        Float?
+  referenceId     String? // Order ID, Invoice ID, etc.
+  notes           String?
+  createdAt       DateTime              @default(now())
+
+  // Relations
+  product         Product?              @relation(fields: [sku], references: [sku])
+
+  @@map("stock_transactions")
+}
+
+enum StockTransactionType {
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+}
+
+// Task Management
+model Task {
+  id              String     @id @default(cuid())
+  taskId          String     @unique
+  title           String
+  description     String?
+  status          TaskStatus @default(PENDING)
+  priority        Priority   @default(MEDIUM)
+  dueDate         DateTime?
+  assignedTo      String?
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  userId          String?
+  user            User?      @relation(fields: [userId], references: [id])
+
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  BLOCKED
+}
+
+// Approval Workflow
+model Approval {
+  id              String         @id @default(cuid())
+  approvalId      String         @unique
+  entityType      ApprovalEntity
+  entityId        String
+  requestedBy     String
+  requestedAt     DateTime       @default(now())
+  approvedBy      String?
+  approvedAt      DateTime?
+  status          ApprovalStatus @default(PENDING)
+  comments        String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  userId          String?
+  user            User?          @relation(fields: [userId], references: [id])
+
+  @@map("approvals")
+}
+
+enum ApprovalEntity {
+  ORDER
+  INVOICE
+  EXPENSE
+  PURCHASE
+  LEAVE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// Repair Management
+model Repair {
+  id              String       @id @default(cuid())
+  repairId        String       @unique
+  customerId      String
+  deviceType      String
+  serialNumber    String?
+  issue           String
+  status          RepairStatus @default(RECEIVED)
+  estimatedCost   Float?
+  actualCost      Float?
+  estimatedCompletion DateTime?
+  completedAt     DateTime?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  customer        Customer     @relation(fields: [customerId], references: [id])
+  userId          String?
+  user            User?        @relation(fields: [userId], references: [id])
+
+  @@map("repairs")
+}
+
+enum RepairStatus {
+  RECEIVED
+  DIAGNOSIS
+  WAITING_PARTS
+  IN_PROGRESS
+  TESTING
+  COMPLETED
+  COLLECTED
+  CANCELLED
+}
+
+// Event Logging
+model SystemEvent {
+  id              String        @id @default(cuid())
+  eventType       String
+  entityType      String?
+  entityId        String?
+  userId          String?
+  description     String
+  metadata        Json?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  user            User?         @relation(fields: [userId], references: [id])
+
+  @@map("system_events")
+}
+
+// Data Center Management
+model DataCenter {
+  id                      String   @id @default(cuid())
+  dcId                    String   @unique
+  name                    String
+  location                String
+  region                  String
+  tier                    String
+  status                  DataCenterStatus @default(ACTIVE)
+  monthlyRackCost         Float
+  avgPowerKw              Float
+  powerCostPerKwh         Float
+  bandwidthCostMonthly    Float
+  supportContractMonthly  Float
+  labourCostMonthly       Float
+  headcount               Int
+  notes                   String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("data_centers")
+}
+
+enum DataCenterStatus {
+  ACTIVE
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+// Cost Center Management
+model CostCenter {
+  id              String           @id @default(cuid())
+  costCenterId    String           @unique
+  name            String
+  department      String
+  description     String?
+  budget          Float
+  spent           Float            @default(0)
+  committed       Float            @default(0)
+  status          CostCenterStatus @default(ON_TRACK)
+  owner           String
+  fiscalYear      Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("cost_centers")
+}
+
+enum CostCenterStatus {
+  ON_TRACK
+  OVER_BUDGET
+  UNDER_REVIEW
+  CLOSED
+}
+
+// Financial Summary (Materialized View)
+model FinancialSummary {
+  id                  String   @id @default(cuid())
+  period              String   @unique // YYYY-MM format
+  totalRevenue        Float
+  grossProfit         Float
+  netProfit           Float
+  grossMargin         Float
+  netMargin           Float
+  cashPosition        Float
+  accountsReceivable  Float
+  accountsPayable     Float
+  orderCount          Int
+  avgOrderValue       Float
+  cogs                Float
+  opex                Float
+  updatedAt           DateTime @default(now())
+
+  @@map("financial_summaries")
+}

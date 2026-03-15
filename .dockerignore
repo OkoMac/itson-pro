@@ -40,7 +40,8 @@ vitest.config.ts
 # Docker files themselves
 Dockerfile*
 docker-compose*
-nginx.conf
+# nginx.conf is needed by Dockerfile, so don't exclude it
+# nginx.conf
 
 # Logs
 *.log

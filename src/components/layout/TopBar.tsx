@@ -1,5 +1,6 @@
 import { useDemo } from '@/context/DemoContext';
-import { Search, RotateCcw, Wifi, X, Package, Users, FileText, Wrench, ShoppingCart, CheckSquare, Calendar, ClipboardList } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Search, RotateCcw, Wifi, X, Package, Users, FileText, Wrench, ShoppingCart, CheckSquare, Calendar, ClipboardList, LogOut, ChevronDown } from 'lucide-react';
 import type { Role } from '@/data/seed';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -158,16 +159,18 @@ function useGlobalSearch(query: string, state: ReturnType<typeof useDemo>['state
 
     // Approvals
     for (const a of state.approvals) {
+      const approvalTitle = `${a.approvalType} — ${a.entityId}`;
       if (
         a.approvalId.toLowerCase().includes(q) ||
-        a.reason.toLowerCase().includes(q) ||
-        a.requestedBy.toLowerCase().includes(q)
+        a.approvalType.toLowerCase().includes(q) ||
+        a.requestedBy.toLowerCase().includes(q) ||
+        a.entityId.toLowerCase().includes(q)
       ) {
         results.push({
           id: a.approvalId,
           type: 'approval',
-          title: `${a.approvalType} — ${a.approvalId}`,
-          subtitle: `${a.requestedBy} · ${a.status}`,
+          title: approvalTitle,
+          subtitle: `${a.approvalId} · ${a.status}`,
           badge: a.status === 'pending' ? 'Pending' : undefined,
           badgeVariant: 'info',
           href: '/approvals',
@@ -227,7 +230,21 @@ const badgeClasses: Record<string, string> = {
 
 export function TopBar() {
   const { state, dispatch, launchScenario, customers } = useDemo();
+  const { user, signOut, isDemoMode } = useAuth();
   const navigate = useNavigate();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(-1);
@@ -249,12 +266,15 @@ export function TopBar() {
   }, [results, query]);
 
   const handleSelect = useCallback((result: SearchResult) => {
+    if (result.type === 'order') {
+      dispatch({ type: 'SELECT_ORDER', orderId: result.id });
+    }
     navigate(result.href);
     setQuery('');
     setOpen(false);
     setCursor(-1);
     inputRef.current?.blur();
-  }, [navigate]);
+  }, [navigate, dispatch]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!open) return;
@@ -291,11 +311,20 @@ export function TopBar() {
   return (
     <header className="h-12 surface-raised border-b border-border flex items-center justify-between px-4 shrink-0">
       <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-foreground tracking-tight">CLG</span>
-        <span className="text-xs text-muted-foreground">Operational Command Centre</span>
-        <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
-          Itson-Pro
+        <div className="w-6 h-6 rounded-md bg-status-active/10 border border-status-active/20 flex items-center justify-center shrink-0">
+          <span className="text-[10px] font-bold text-status-active">IP</span>
+        </div>
+        <span className="text-sm font-semibold text-foreground tracking-tight">
+          {user?.organisation?.name ?? 'CLG'}
         </span>
+        <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
+          {user?.organisation?.plan === 'trial' ? 'Free Trial' : (user?.organisation?.plan ?? 'Itson-Pro')}
+        </span>
+        {isDemoMode && (
+          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-status-active/10 text-status-active border border-status-active/20">
+            DEMO
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -388,7 +417,46 @@ export function TopBar() {
           Omni: Simulated
         </div>
 
-        <span className="font-mono text-[10px] text-muted-foreground">{dateStr} {timeStr}</span>
+        <span className="font-mono text-[10px] text-muted-foreground hidden xl:block">{dateStr} {timeStr}</span>
+
+        {/* User menu */}
+        <div ref={userMenuRef} className="relative">
+          <button
+            onClick={() => setUserMenuOpen(o => !o)}
+            className="flex items-center gap-1.5 h-7 px-2 rounded-md hover:bg-accent transition-colors"
+          >
+            <div className="w-5 h-5 rounded-full bg-status-active/20 border border-status-active/30 flex items-center justify-center shrink-0">
+              <span className="text-[9px] font-semibold text-status-active">
+                {(user?.profile?.fullName ?? user?.email ?? 'U').slice(0, 2).toUpperCase()}
+              </span>
+            </div>
+            <span className="text-[11px] text-foreground hidden sm:block max-w-[100px] truncate">
+              {user?.profile?.fullName ?? user?.email ?? 'User'}
+            </span>
+            <ChevronDown size={11} className={`text-muted-foreground transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute top-full right-0 mt-1 w-56 bg-popover border border-border rounded-md shadow-lg z-50 py-1 overflow-hidden">
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs font-medium text-foreground truncate">
+                  {user?.profile?.fullName ?? user?.email}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">{user?.email}</p>
+                {user?.profile?.role && (
+                  <p className="text-[10px] text-muted-foreground capitalize mt-0.5">{user.profile.role}</p>
+                )}
+              </div>
+              <button
+                onClick={async () => { setUserMenuOpen(false); await signOut(); navigate('/auth/login'); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <LogOut size={13} />
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

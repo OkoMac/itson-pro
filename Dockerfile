@@ -1,13 +1,10 @@
 # ─── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
-
-# Install bun for faster installs
-RUN npm install -g bun@1.3.10 --quiet
+FROM oven/bun:1.1 AS builder
 
 WORKDIR /app
 
-# Copy dependency manifests
-COPY package.json bun.lockb* ./
+# Copy dependency manifests (supports both bun.lock and bun.lockb)
+COPY package.json bun.lock* bun.lockb* ./
 
 # Install all dependencies (including devDeps needed for build)
 RUN bun install --frozen-lockfile
