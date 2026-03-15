@@ -374,6 +374,8 @@ export function TopBar() {
           ))}
         </select>
 
+        <NotificationBell />
+
         <button
           onClick={() => launchScenario('reset')}
           className="h-7 px-2 rounded-md bg-secondary border border-border text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
