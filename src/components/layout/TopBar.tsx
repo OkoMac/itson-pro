@@ -3,6 +3,7 @@ import { Search, RotateCcw, Wifi, X, Package, Users, FileText, Wrench, ShoppingC
 import type { Role } from '@/data/seed';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { NotificationBell } from './NotificationBell';
 
 const roleLabels: Record<Role, string> = {
   gm: 'GM',
