@@ -110,7 +110,14 @@ const FinancialsPage = () => {
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {kpis.map(kpi => (
-          <div key={kpi.label} className="surface-raised border border-border rounded-lg p-4">
+          <button
+            key={kpi.id}
+            onClick={() => setActiveKpi(activeKpi === kpi.id ? null : kpi.id)}
+            className={cn(
+              'text-left surface-raised border rounded-lg p-4 transition-all hover:border-muted-foreground/40',
+              activeKpi === kpi.id ? 'border-status-active/50 ring-1 ring-status-active/20' : 'border-border'
+            )}
+          >
             <div className="flex items-center justify-between mb-2">
               <kpi.icon size={16} className="text-muted-foreground" />
               {kpi.trend && (
@@ -119,9 +126,21 @@ const FinancialsPage = () => {
             </div>
             <div className="text-xl font-semibold font-mono text-foreground">{kpi.value}</div>
             <div className="text-[11px] text-muted-foreground mt-1">{kpi.label}</div>
-          </div>
+            <div className="text-[9px] text-status-active mt-1">Click to drill down →</div>
+          </button>
         ))}
       </div>
+
+      {/* KPI Drill-Down Panel */}
+      {activeKpi && (
+        <KpiDrillDown
+          kpiId={activeKpi}
+          monthly={monthly}
+          summary={summary}
+          costCenters={costCenters}
+          onClose={() => setActiveKpi(null)}
+        />
+      )}
 
       {view === 'kanban' && <CostCenterKanban costCenters={costCenters} />}
       {view === 'charts' && <ChartsView monthly={monthly} costCenters={costCenters} departmentSpend={departmentSpend} pieColors={pieColors} />}
@@ -132,6 +151,441 @@ const FinancialsPage = () => {
     </div>
   );
 };
+
+// ── KPI Drill-Down Panel ────────────────────────────────────────────────
+
+function KpiDrillDown({ kpiId, monthly, summary, costCenters, onClose }: {
+  kpiId: string;
+  monthly: typeof seedMonthlyFinancials;
+  summary: typeof seedFinancialSummary;
+  costCenters: CostCenter[];
+  onClose: () => void;
+}) {
+  const panels: Record<string, () => React.ReactNode> = {
+    revenue: () => {
+      const byMonth = monthly.map(m => ({ month: m.month, revenue: m.revenue, orders: m.orderCount, aov: m.avgOrderValue }));
+      const topCustomerRevenue = [
+        { name: 'Pick n Pay', value: 1420000 },
+        { name: 'Standard Bank HQ', value: 1180000 },
+        { name: 'Dis-Chem', value: 1050000 },
+        { name: 'OR Tambo Airport', value: 980000 },
+        { name: 'Mediclinic Sandton', value: 860000 },
+        { name: 'Woolworths Regional', value: 720000 },
+        { name: 'Sandton Office Park', value: 680000 },
+        { name: 'Others', value: 965000 },
+      ];
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="Total Revenue (6mo)" value={fmtFull(summary.totalRevenue)} />
+            <Stat label="Avg Monthly" value={fmtFull(Math.round(summary.totalRevenue / 6))} />
+            <Stat label="Total Orders" value={String(monthly.reduce((s, m) => s + m.orderCount, 0))} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">Monthly Revenue Breakdown</h4>
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byMonth}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 12%, 20%)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+                    <YAxis tickFormatter={fmt} tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="revenue" name="Revenue" fill="hsl(217, 91%, 60%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">Revenue by Customer</h4>
+              <div className="space-y-2">
+                {topCustomerRevenue.map(c => {
+                  const pct = Math.round((c.value / summary.totalRevenue) * 100);
+                  return (
+                    <div key={c.name}>
+                      <div className="flex items-center justify-between text-[11px] mb-0.5">
+                        <span className="text-foreground">{c.name}</span>
+                        <span className="font-mono text-muted-foreground">{fmtFull(c.value)} ({pct}%)</span>
+                      </div>
+                      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full bg-status-active rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="surface-overlay border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead><tr className="border-b border-border">
+                <th className="text-left px-3 py-2 text-muted-foreground font-medium">Month</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Revenue</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Orders</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Avg Order Value</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">MoM Change</th>
+              </tr></thead>
+              <tbody>
+                {byMonth.map((m, i) => {
+                  const prev = i > 0 ? byMonth[i - 1].revenue : m.revenue;
+                  const change = ((m.revenue - prev) / prev * 100).toFixed(1);
+                  return (
+                    <tr key={m.month} className="border-b border-border last:border-0 hover:bg-accent/20">
+                      <td className="px-3 py-2 text-foreground">{m.month}</td>
+                      <td className="px-3 py-2 text-right font-mono text-foreground">{fmtFull(m.revenue)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-muted-foreground">{m.orders}</td>
+                      <td className="px-3 py-2 text-right font-mono text-muted-foreground">{fmtFull(m.aov)}</td>
+                      <td className={`px-3 py-2 text-right font-mono ${Number(change) >= 0 ? 'text-status-healthy' : 'text-status-critical'}`}>
+                        {i > 0 ? `${Number(change) >= 0 ? '+' : ''}${change}%` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    },
+    grossMargin: () => {
+      const data = monthly.map(m => ({
+        month: m.month,
+        revenue: m.revenue,
+        cogs: m.cogs,
+        grossProfit: m.grossProfit,
+        margin: ((m.grossProfit / m.revenue) * 100).toFixed(1),
+      }));
+      const cogsBreakdown = [
+        { name: 'Raw Materials', value: Math.round(summary.totalCogs * 0.42) },
+        { name: 'Component Parts', value: Math.round(summary.totalCogs * 0.28) },
+        { name: 'Direct Labour', value: Math.round(summary.totalCogs * 0.18) },
+        { name: 'Packaging', value: Math.round(summary.totalCogs * 0.08) },
+        { name: 'Freight Inbound', value: Math.round(summary.totalCogs * 0.04) },
+      ];
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-4 gap-3">
+            <Stat label="Gross Margin" value={`${summary.grossMargin}%`} highlight />
+            <Stat label="Total COGS" value={fmtFull(summary.totalCogs)} />
+            <Stat label="Gross Profit" value={fmtFull(summary.totalRevenue - summary.totalCogs)} />
+            <Stat label="COGS / Revenue" value={`${((summary.totalCogs / summary.totalRevenue) * 100).toFixed(1)}%`} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">Margin Trend</h4>
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 12%, 20%)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+                    <YAxis tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} domain={[30, 50]} unit="%" />
+                    <Tooltip content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="surface-raised border border-border rounded-lg p-2 text-xs shadow-lg">
+                          <p className="text-foreground font-medium">{label}</p>
+                          <p className="text-status-healthy font-mono">Margin: {payload[0].value}%</p>
+                        </div>
+                      );
+                    }} />
+                    <Line type="monotone" dataKey="margin" stroke="hsl(142, 72%, 46%)" strokeWidth={2} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">COGS Composition</h4>
+              <div className="space-y-2">
+                {cogsBreakdown.map(c => {
+                  const pct = Math.round((c.value / summary.totalCogs) * 100);
+                  return (
+                    <div key={c.name}>
+                      <div className="flex items-center justify-between text-[11px] mb-0.5">
+                        <span className="text-foreground">{c.name}</span>
+                        <span className="font-mono text-muted-foreground">{fmtFull(c.value)} ({pct}%)</span>
+                      </div>
+                      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full bg-status-risk rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="surface-overlay border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead><tr className="border-b border-border">
+                <th className="text-left px-3 py-2 text-muted-foreground font-medium">Month</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Revenue</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">COGS</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Gross Profit</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Margin %</th>
+              </tr></thead>
+              <tbody>
+                {data.map(m => (
+                  <tr key={m.month} className="border-b border-border last:border-0 hover:bg-accent/20">
+                    <td className="px-3 py-2 text-foreground">{m.month}</td>
+                    <td className="px-3 py-2 text-right font-mono text-foreground">{fmtFull(m.revenue)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-status-critical">{fmtFull(m.cogs)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-status-healthy">{fmtFull(m.grossProfit)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-foreground">{m.margin}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    },
+    netMargin: () => {
+      const data = monthly.map(m => ({
+        month: m.month,
+        grossProfit: m.grossProfit,
+        opex: m.opex,
+        netProfit: m.netProfit,
+        netMargin: ((m.netProfit / m.revenue) * 100).toFixed(1),
+      }));
+      const opexBreakdown = [
+        { name: 'Salaries & Wages', value: Math.round(summary.totalOpex * 0.45) },
+        { name: 'Rent & Utilities', value: Math.round(summary.totalOpex * 0.18) },
+        { name: 'Marketing & Sales', value: Math.round(summary.totalOpex * 0.12) },
+        { name: 'Insurance & Legal', value: Math.round(summary.totalOpex * 0.09) },
+        { name: 'IT & Software', value: Math.round(summary.totalOpex * 0.08) },
+        { name: 'Travel & Admin', value: Math.round(summary.totalOpex * 0.05) },
+        { name: 'Depreciation', value: Math.round(summary.totalOpex * 0.03) },
+      ];
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-4 gap-3">
+            <Stat label="Net Margin" value={`${summary.netMargin}%`} highlight />
+            <Stat label="Total OPEX" value={fmtFull(summary.totalOpex)} />
+            <Stat label="Net Profit" value={fmtFull(summary.totalRevenue - summary.totalCogs - summary.totalOpex)} />
+            <Stat label="OPEX / Revenue" value={`${((summary.totalOpex / summary.totalRevenue) * 100).toFixed(1)}%`} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">Profitability Waterfall</h4>
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 12%, 20%)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+                    <YAxis tickFormatter={fmt} tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="grossProfit" name="Gross Profit" fill="hsl(142, 72%, 46%)" opacity={0.4} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="opex" name="OPEX" fill="hsl(36, 96%, 55%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="netProfit" name="Net Profit" fill="hsl(263, 70%, 58%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">OPEX Breakdown</h4>
+              <div className="space-y-2">
+                {opexBreakdown.map(c => {
+                  const pct = Math.round((c.value / summary.totalOpex) * 100);
+                  return (
+                    <div key={c.name}>
+                      <div className="flex items-center justify-between text-[11px] mb-0.5">
+                        <span className="text-foreground">{c.name}</span>
+                        <span className="font-mono text-muted-foreground">{fmtFull(c.value)} ({pct}%)</span>
+                      </div>
+                      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full bg-status-risk rounded-full" style={{ width: `${pct * 2}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    },
+    cash: () => {
+      const cashFlow = monthly.map((m, i) => ({
+        month: m.month,
+        inflow: Math.round(m.revenue * 0.92),
+        outflow: Math.round((m.cogs + m.opex) * 0.95),
+        net: Math.round(m.revenue * 0.92 - (m.cogs + m.opex) * 0.95),
+        balance: summary.cashPosition + monthly.slice(0, i + 1).reduce((s, x) => s + Math.round(x.revenue * 0.92 - (x.cogs + x.opex) * 0.95), 0),
+      }));
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-4 gap-3">
+            <Stat label="Cash Position" value={fmtFull(summary.cashPosition)} highlight />
+            <Stat label="Receivables" value={fmtFull(summary.accountsReceivable)} />
+            <Stat label="Payables" value={fmtFull(summary.accountsPayable)} />
+            <Stat label="Net Working Capital" value={fmtFull(summary.cashPosition + summary.accountsReceivable - summary.accountsPayable)} />
+          </div>
+          <div className="surface-overlay border border-border rounded-lg p-4">
+            <h4 className="text-xs font-semibold text-foreground mb-3">Cash Flow Projection</h4>
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cashFlow}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 12%, 20%)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+                  <YAxis tickFormatter={fmt} tick={{ fontSize: 9, fill: 'hsl(215, 10%, 48%)' }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="inflow" name="Cash In" stroke="hsl(142, 72%, 46%)" fill="hsl(142, 72%, 46%)" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="outflow" name="Cash Out" stroke="hsl(0, 72%, 51%)" fill="hsl(0, 72%, 51%)" fillOpacity={0.1} />
+                  <Line type="monotone" dataKey="balance" name="Balance" stroke="hsl(217, 91%, 60%)" strokeWidth={2} dot={{ r: 3 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="surface-overlay border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead><tr className="border-b border-border">
+                <th className="text-left px-3 py-2 text-muted-foreground font-medium">Month</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Cash Inflow</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Cash Outflow</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Net Cash</th>
+                <th className="text-right px-3 py-2 text-muted-foreground font-medium">Running Balance</th>
+              </tr></thead>
+              <tbody>
+                {cashFlow.map(m => (
+                  <tr key={m.month} className="border-b border-border last:border-0 hover:bg-accent/20">
+                    <td className="px-3 py-2 text-foreground">{m.month}</td>
+                    <td className="px-3 py-2 text-right font-mono text-status-healthy">{fmtFull(m.inflow)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-status-critical">{fmtFull(m.outflow)}</td>
+                    <td className={`px-3 py-2 text-right font-mono ${m.net >= 0 ? 'text-status-healthy' : 'text-status-critical'}`}>{m.net >= 0 ? '+' : ''}{fmtFull(m.net)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-foreground">{fmtFull(m.balance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    },
+    receivables: () => {
+      const agingBuckets = [
+        { bucket: 'Current (0-30d)', value: Math.round(summary.accountsReceivable * 0.42), color: 'bg-status-healthy' },
+        { bucket: '31-60 days', value: Math.round(summary.accountsReceivable * 0.28), color: 'bg-status-active' },
+        { bucket: '61-90 days', value: Math.round(summary.accountsReceivable * 0.18), color: 'bg-status-risk' },
+        { bucket: '90+ days', value: Math.round(summary.accountsReceivable * 0.12), color: 'bg-status-critical' },
+      ];
+      const customerAR = [
+        { name: 'Pick n Pay', amount: 185000, days: 22 },
+        { name: 'Standard Bank HQ', amount: 156000, days: 45 },
+        { name: 'Dis-Chem', amount: 142000, days: 18 },
+        { name: 'Netcare Morningside', amount: 118000, days: 67 },
+        { name: 'OR Tambo Airport', amount: 98000, days: 35 },
+        { name: 'Woolworths Regional', amount: 78000, days: 52 },
+        { name: 'Others', amount: 65000, days: 41 },
+      ];
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="Total Receivables" value={fmtFull(summary.accountsReceivable)} highlight />
+            <Stat label="Avg Days Outstanding" value="38 days" />
+            <Stat label="90+ Days Overdue" value={fmtFull(agingBuckets[3].value)} warning />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">Aging Analysis</h4>
+              <div className="space-y-3">
+                {agingBuckets.map(b => (
+                  <div key={b.bucket}>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-foreground">{b.bucket}</span>
+                      <span className="font-mono text-muted-foreground">{fmtFull(b.value)}</span>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                      <div className={`h-full ${b.color} rounded-full`} style={{ width: `${(b.value / summary.accountsReceivable) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="surface-overlay border border-border rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">By Customer</h4>
+              <div className="space-y-2">
+                {customerAR.map(c => (
+                  <div key={c.name} className="flex items-center justify-between text-[11px]">
+                    <span className="text-foreground">{c.name}</span>
+                    <div className="flex items-center gap-3">
+                      <span className={`font-mono ${c.days > 60 ? 'text-status-critical' : c.days > 30 ? 'text-status-risk' : 'text-muted-foreground'}`}>{c.days}d</span>
+                      <span className="font-mono text-foreground w-[80px] text-right">{fmtFull(c.amount)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    },
+    payables: () => {
+      const supplierAP = [
+        { name: 'DryCo International', amount: 128000, dueIn: 12 },
+        { name: 'HygiTech SA', amount: 95000, dueIn: 8 },
+        { name: 'CleanFlow Parts', amount: 72000, dueIn: 22 },
+        { name: 'BrandWrap Packaging', amount: 58000, dueIn: 15 },
+        { name: 'FastFreight Logistics', amount: 45000, dueIn: 5 },
+        { name: 'Utility Providers', amount: 32000, dueIn: 18 },
+        { name: 'Other Suppliers', amount: 26000, dueIn: 30 },
+      ];
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="Total Payables" value={fmtFull(summary.accountsPayable)} highlight />
+            <Stat label="Due Within 7 Days" value={fmtFull(supplierAP.filter(s => s.dueIn <= 7).reduce((s, x) => s + x.amount, 0))} warning />
+            <Stat label="Supplier Count" value={`${supplierAP.length} active`} />
+          </div>
+          <div className="surface-overlay border border-border rounded-lg p-4">
+            <h4 className="text-xs font-semibold text-foreground mb-3">Payables by Supplier</h4>
+            <div className="space-y-2">
+              {supplierAP.map(s => (
+                <div key={s.name} className="flex items-center justify-between text-[11px] py-1 border-b border-border last:border-0">
+                  <span className="text-foreground">{s.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.dueIn <= 7 ? 'bg-status-critical/10 text-status-critical' : s.dueIn <= 14 ? 'bg-status-risk/10 text-status-risk' : 'bg-accent text-muted-foreground'}`}>
+                      Due in {s.dueIn}d
+                    </span>
+                    <span className="font-mono text-foreground w-[80px] text-right">{fmtFull(s.amount)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    },
+  };
+
+  const titles: Record<string, string> = {
+    revenue: 'Revenue Deep Dive',
+    grossMargin: 'Gross Margin Analysis',
+    netMargin: 'Net Margin & OPEX Breakdown',
+    cash: 'Cash Flow & Working Capital',
+    receivables: 'Accounts Receivable Aging',
+    payables: 'Accounts Payable Overview',
+  };
+
+  return (
+    <div className="surface-raised border border-status-active/30 rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">{titles[kpiId] ?? kpiId}</h3>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 rounded hover:bg-accent">✕ Close</button>
+      </div>
+      <div className="p-4">
+        {panels[kpiId]?.()}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight, warning }: { label: string; value: string; highlight?: boolean; warning?: boolean }) {
+  return (
+    <div className="surface-overlay border border-border rounded-lg p-3">
+      <div className="text-[10px] text-muted-foreground mb-1">{label}</div>
+      <div className={cn('text-lg font-mono font-bold', highlight ? 'text-status-active' : warning ? 'text-status-critical' : 'text-foreground')}>{value}</div>
+    </div>
+  );
+}
 
 // ── Cost Center Kanban ──────────────────────────────────────────────
 
