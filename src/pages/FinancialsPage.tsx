@@ -42,17 +42,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const FinancialsPage = () => {
   const [view, setView] = useState<View>('kanban');
+  const [activeKpi, setActiveKpi] = useState<string | null>(null);
   const summary = seedFinancialSummary;
   const monthly = seedMonthlyFinancials;
   const costCenters = seedCostCenters;
 
   const kpis = [
-    { label: 'Total Revenue', value: fmtFull(summary.totalRevenue), icon: DollarSign, trend: '+8.2%', up: true },
-    { label: 'Gross Margin', value: `${summary.grossMargin}%`, icon: TrendingUp, trend: '+1.4%', up: true },
-    { label: 'Net Margin', value: `${summary.netMargin}%`, icon: TrendingDown, trend: '-0.3%', up: false },
-    { label: 'Cash Position', value: fmtFull(summary.cashPosition), icon: CreditCard, trend: '+12%', up: true },
-    { label: 'Receivables', value: fmtFull(summary.accountsReceivable), icon: ArrowUpRight, trend: '', up: true },
-    { label: 'Payables', value: fmtFull(summary.accountsPayable), icon: ArrowDownRight, trend: '', up: false },
+    { id: 'revenue', label: 'Total Revenue', value: fmtFull(summary.totalRevenue), icon: DollarSign, trend: '+8.2%', up: true },
+    { id: 'grossMargin', label: 'Gross Margin', value: `${summary.grossMargin}%`, icon: TrendingUp, trend: '+1.4%', up: true },
+    { id: 'netMargin', label: 'Net Margin', value: `${summary.netMargin}%`, icon: TrendingDown, trend: '-0.3%', up: false },
+    { id: 'cash', label: 'Cash Position', value: fmtFull(summary.cashPosition), icon: CreditCard, trend: '+12%', up: true },
+    { id: 'receivables', label: 'Receivables', value: fmtFull(summary.accountsReceivable), icon: ArrowUpRight, trend: '', up: true },
+    { id: 'payables', label: 'Payables', value: fmtFull(summary.accountsPayable), icon: ArrowDownRight, trend: '', up: false },
   ];
 
   const departmentSpend = Object.entries(
