@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { seedCostCenters, seedMonthlyFinancials, seedFinancialSummary, seedDataCenters, seedInvoices, type CostCenter, type CostCenterStatus, type Invoice, type InvoiceStatus } from '@/data/seed';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, BarChart3, Kanban, Grid3X3, Map, Server, Receipt, ChevronRight, Globe, Filter, Download } from 'lucide-react';
 
