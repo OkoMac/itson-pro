@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: '/itsonoip/',
+  base: '/oip/clg/',
   server: {
     host: "::",
     port: 5173,
@@ -56,8 +56,8 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0f1117",
         display: "standalone",
         orientation: "any",
-        scope: "/itsonoip/",
-        start_url: "/itsonoip/",
+        scope: "/oip/clg/",
+        start_url: "/oip/clg/",
         categories: ["business", "productivity"],
         icons: [
           {
@@ -114,21 +114,21 @@ export default defineConfig(({ mode }) => ({
             name: "Dashboard",
             short_name: "Dashboard",
             description: "Open operational dashboard",
-            url: "/itsonoip/",
+            url: "/oip/clg/",
             icons: [{ src: "icons/icon-96.png", sizes: "96x96" }],
           },
           {
             name: "Orders",
             short_name: "Orders",
             description: "View active orders",
-            url: "/itsonoip/orders",
+            url: "/oip/clg/orders",
             icons: [{ src: "icons/icon-96.png", sizes: "96x96" }],
           },
           {
             name: "Financials",
             short_name: "Finance",
             description: "Financial command centre",
-            url: "/itsonoip/financials",
+            url: "/oip/clg/financials",
             icons: [{ src: "icons/icon-96.png", sizes: "96x96" }],
           },
         ],

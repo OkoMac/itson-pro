@@ -31,7 +31,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <PwaManager />
-      <BrowserRouter basename="/itsonoip">
+      <BrowserRouter basename="/oip/clg">
         <AuthProvider>
           <Routes>
             {/* ── Auth routes (unauthenticated shell) ── */}
