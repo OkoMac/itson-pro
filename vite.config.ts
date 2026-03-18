@@ -9,11 +9,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: '/itsonoip/',
   server: {
     host: "::",
-    port: 8080,
+    port: 5173,
     hmr: {
       overlay: false,
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+      },
     },
   },
   plugins: [
@@ -48,8 +56,8 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0f1117",
         display: "standalone",
         orientation: "any",
-        scope: "/",
-        start_url: "/",
+        scope: "/itsonoip/",
+        start_url: "/itsonoip/",
         categories: ["business", "productivity"],
         icons: [
           {
@@ -106,21 +114,21 @@ export default defineConfig(({ mode }) => ({
             name: "Dashboard",
             short_name: "Dashboard",
             description: "Open operational dashboard",
-            url: "/",
+            url: "/itsonoip/",
             icons: [{ src: "icons/icon-96.png", sizes: "96x96" }],
           },
           {
             name: "Orders",
             short_name: "Orders",
             description: "View active orders",
-            url: "/orders",
+            url: "/itsonoip/orders",
             icons: [{ src: "icons/icon-96.png", sizes: "96x96" }],
           },
           {
             name: "Financials",
             short_name: "Finance",
             description: "Financial command centre",
-            url: "/financials",
+            url: "/itsonoip/financials",
             icons: [{ src: "icons/icon-96.png", sizes: "96x96" }],
           },
         ],
