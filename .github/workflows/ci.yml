@@ -26,13 +26,13 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Type check
-        run: bun run tsc --noEmit
+        run: bunx tsc --noEmit
 
       - name: Build
         run: bun run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || '' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || '' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
   # ── Backend ─────────────────────────────────────────────────────────────────
   backend:
@@ -52,7 +52,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Generate Prisma client
         run: npx prisma generate
